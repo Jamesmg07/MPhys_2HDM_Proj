@@ -1,0 +1,7 @@
+mpic++ mpi_evolution_2HDM_Z2.cpp -o Executables/mpi_evolution_2HDM_Z2
+
+
+
+mpiexec -n 4 Executables/mpi_evolution_2HDM_Z2
+
+mpirun -np 4 ./Executables/mpi_evolution_2HDM_Z2
