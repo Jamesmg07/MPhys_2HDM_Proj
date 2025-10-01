@@ -18,8 +18,8 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 512; // Grid Dimensions
-const long long int ny = 512;
+const long long int nx = 256; // Grid Dimensions
+const long long int ny = 256;
 const long long int nz = 1; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
