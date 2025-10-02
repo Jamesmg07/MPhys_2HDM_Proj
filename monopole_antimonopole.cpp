@@ -20,9 +20,9 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 256; // Grid Dimensions
-const long long int ny = 256;
-const long long int nz = 256; // Set nz = 1 for 2D.
+const long long int nx = 64; // Grid Dimensions
+const long long int ny = 64;
+const long long int nz = 64; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
@@ -134,6 +134,10 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    if (rank == 0) {
+        cout << "STEP 1: MPI initialization completed" << endl;
+    }
+
     // Add debugging output
     if (rank == 0) {
         cout << "Starting monopole-antimonopole simulation..." << endl;
@@ -142,6 +146,10 @@ int main(int argc, char** argv) {
         cout << "Number of MPI processes: " << size << endl;
         cout << "Number of timesteps: " << nt << endl;
         cout << "Initial condition type: " << ic_type << endl;
+    }
+
+    if (rank == 0) {
+        cout << "STEP 2: Basic parameters displayed" << endl;
     }
 
     long long int chunk = nPos / size;
@@ -154,6 +162,7 @@ int main(int argc, char** argv) {
     if (rank == 0) {
         cout << "Core size per process: " << coreSize << endl;
         cout << "Looking for initial condition file: " << "./Data/SOR_Fields.txt" << endl;
+        cout << "STEP 3: Memory allocation calculations completed" << endl;
     }
 
 
@@ -207,7 +216,8 @@ int main(int argc, char** argv) {
 
         if (size == 1) { cout << "Warning: Only one processor being used. This code is not designed for only one processor and may not work." << endl; }
         if (chunk < ny * nz) { cout << "Warning: Chunk size is less than the minimum halo size (i.e chunk neighbour data). Code currently assumes this is not the case so it probably won't work." << endl; }
-
+        
+        cout << "STEP 4: Halo size calculations and warnings completed" << endl;
     }
 
     // Define variables for the fields
@@ -220,7 +230,9 @@ int main(int argc, char** argv) {
     vector<vector<double>> k_kp(4, vector<double>(2 * totSize, 0.0)); 
     vector<vector<double>> g_gp(4, vector<double>(2 * totSize, 0.0));
     
-
+    if (rank == 0) {
+        cout << "STEP 5: Field arrays allocated" << endl;
+    }
 
     struct timeval start, end;
     if (rank == 0) { gettimeofday(&start, NULL); }
@@ -229,25 +241,26 @@ int main(int argc, char** argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     
+    if (rank == 0) {
+        cout << "STEP 6: MPI barrier passed, starting file operations" << endl;
+    }
 
     //Creates Output Files if required
     string icPath = dir_path + "ic.txt";
     ifstream ic(icPath.c_str());
 
-
     string finalFieldPath = dir_path + "vortices_ gif_finalFields" + outTag + ".txt";
     ofstream finalFields(finalFieldPath.c_str());
-
 
     string valsPerLoopPath = dir_path + "t_gamma=2pi_3_energy" + outTag + ".txt";
     ofstream valsPerLoop(valsPerLoopPath.c_str());
 
-
     string monopoleNumberPath = dir_path + "2m_monopoleNumber" + outTag + ".txt";
     ofstream monopoleNumber(monopoleNumberPath.c_str());
 
-    
-
+    if (rank == 0) {
+        cout << "STEP 7: Output files created" << endl;
+    }
 
     //DISTANCE BETWEEN MONOPOLE AND ANTIMONOPOLE
     // Index values (not neccessarily on grid and hence not integers) of the zero coordinate.
@@ -259,10 +272,15 @@ int main(int argc, char** argv) {
     y2 = 0.5 * (ny - 1);
     z2 = 0.5 * (nz - 25); // z2 = 52
 
-
-
+    if (rank == 0) {
+        cout << "STEP 8: Monopole positions calculated" << endl;
+    }
 
     if (ic_type == "random") {
+
+        if (rank == 0) {
+            cout << "STEP 9a: Starting random initial conditions" << endl;
+        }
 
         // Creates and assigns RIC for each of the 8 fields independantly.
 
@@ -363,6 +381,10 @@ int main(int argc, char** argv) {
 
     else if (ic_type == "monopole") {
 
+        if (rank == 0) {
+            cout << "STEP 9a: Starting monopole initial conditions" << endl;
+        }
+
         string fields_ic_data = dir_path + "SOR_Fields.txt";
         
         // Check if file exists
@@ -378,6 +400,7 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             cout << "Found initial condition file, loading..." << endl;
+            cout << "STEP 9b: Initial condition file validation passed" << endl;
         }
         
         // Vectors to store the values of k and k_p
@@ -409,6 +432,9 @@ int main(int argc, char** argv) {
 
         for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
 
+            if (rank == 0 && i == frontHaloSize) {
+                cout << "STEP 9d: Starting main monopole calculation loop" << endl;
+            }
 
             //First monopole
 
@@ -703,8 +729,9 @@ int main(int argc, char** argv) {
 
         }
 
-
-
+        if (rank == 0) {
+            cout << "STEP 9e: Main monopole calculation loop completed" << endl;
+        }
 
         // Now that the core data has been generated, need to communicate the haloes between processes:
 
@@ -867,6 +894,10 @@ int main(int argc, char** argv) {
     // Main for loop that evolves the fields:
     for (TimeStep = 0; TimeStep < nt; TimeStep++) {
 
+        if (rank == 0 && TimeStep == 0) {
+            cout << "STEP 11: Starting main evolution loop" << endl;
+        }
+
         double fric, tau;
 
 
@@ -893,8 +924,9 @@ int main(int argc, char** argv) {
         tPast = TimeStep % 2;
 
 
-
-
+        if (rank == 0 && TimeStep == 0) {
+            cout << "STEP 12: Damping and expansion parameters calculated" << endl;
+        }
 
         // Main calculations and evolutions section, using the EoM:
         totalLocalEnergy = 0;
@@ -1277,8 +1309,9 @@ int main(int argc, char** argv) {
             if(monopoleDetect) { monopoleNumber << "NM" << endl; } 
             }
 
-
-
+        if (rank == 0 && TimeStep == 0) {
+            cout << "STEP 11: Starting main evolution loop" << endl;
+        }
 
         // If calculating the energy, add it all up and output to text
         if (calcEnergy) {
@@ -1373,7 +1406,9 @@ int main(int argc, char** argv) {
 
         }
 
-
+        if (rank == 0 && TimeStep == 0) {
+            cout << "STEP 16: Halo update completed for timestep 0" << endl;
+        }
 
         //Output the final fields.
         if (finalOut and TimeStep == nt - 1) {
@@ -1590,17 +1625,17 @@ int main(int argc, char** argv) {
 
     }
 
-
     if (rank == 0) {
 
         cout << "\rTimestep " << nt << " completed." << endl;
+        cout << "STEP 21: Main evolution loop completed" << endl;
 
         gettimeofday(&end, NULL);
 
         cout << "Time taken: " << end.tv_sec - start.tv_sec << "s" << endl;
+        cout << "STEP 22: Timing completed" << endl;
 
     }
-
 
     // Deletes redundent outpur files if not used:
     if (rank == 0) {
@@ -1614,11 +1649,15 @@ int main(int argc, char** argv) {
             valsPerLoop.close();
             remove(valsPerLoopPath.c_str());
         }
+        
+        cout << "STEP 23: File cleanup completed" << endl;
     }
-
 
     MPI_Finalize();
 
+    if (rank == 0) {
+        cout << "STEP 24: MPI finalized - program completed successfully" << endl;
+    }
 
     return 0;
 }
