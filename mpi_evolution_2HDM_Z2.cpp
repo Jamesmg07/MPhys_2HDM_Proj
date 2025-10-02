@@ -18,8 +18,8 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 512; // Grid Dimensions
-const long long int ny = 512;
+const long long int nx = 256; // Grid Dimensions
+const long long int ny = 256;
 const long long int nz = 1; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
@@ -34,15 +34,15 @@ const int seed = 73;
 
 const std::string outTag = "_nx" + std::to_string(nx) + "_nt" + std::to_string(nt) + "_seed" + std::to_string(seed) + "_Z2";
 
-const bool calcEnergy = false; // Output Choices
-const bool wallDetect = false;
+const bool calcEnergy = true; // Changed from false to true
+const bool wallDetect = true; // Changed from false to true
 const bool finalOut = true;
 
-const bool makeGif = false;
+const bool makeGif = true; // Changed from false to true
 const int saveFreq = 20;
 
 const std::string file_path = __FILE__;
-const std::string dir_path = file_path.substr(0, file_path.find_last_of('/')) + "/Data/"; // Data Directory Location (currently wherever code is located)
+const std::string dir_path = "./Data/"; // Data Directory Location (current working directory)
 
 const int countRate = 20; // Increments for simulation progress status output.
 
@@ -211,10 +211,20 @@ int main(int argc, char** argv) {
     std::string icPath = dir_path + "ic.txt";
     std::ifstream ic(icPath.c_str());
 
+    // Debug: Print the directory path being used
+    if (rank == 0) {
+        std::cout << "File path: " << file_path << std::endl;
+        std::cout << "Directory path: " << dir_path << std::endl;
+    }
 
     std::string finalFieldPath = dir_path + "finalFields" + outTag + ".txt";
     std::ofstream finalFields(finalFieldPath.c_str());
 
+    // Debug: Print the final field path
+    if (rank == 0) {
+        std::cout << "Final field path: " << finalFieldPath << std::endl;
+        std::cout << "finalOut = " << (finalOut ? "true" : "false") << std::endl;
+    }
 
     std::string valsPerLoopPath = dir_path + "valsPerLoop" + outTag + ".txt";
     std::ofstream valsPerLoop(valsPerLoopPath.c_str());
@@ -693,6 +703,7 @@ int main(int argc, char** argv) {
         if (finalOut and TimeStep == nt - 1) {
 
             if (rank == 0) {
+                std::cout << "Writing final fields to: " << finalFieldPath << std::endl;
                 finalFields << "R0" << " " << "R1" << " " << "R2" << " " << "R3" << " " << "R4" << " " << "R5" << " " << "n1" << " " << "n2" << " " << "n3" << std::endl;
 
                 std::vector<std::vector<double>> fieldsOut(nb_fields, std::vector<double>(nPos, 0.0));
@@ -861,13 +872,20 @@ int main(int argc, char** argv) {
     if (rank == 0) {
 
         if (!finalOut) {
+            std::cout << "Deleting final fields file (finalOut = false)" << std::endl;
             finalFields.close();
             remove(finalFieldPath.c_str());
+        } else {
+            std::cout << "Keeping final fields file (finalOut = true)" << std::endl;
+            finalFields.close();
         }
 
         if (!calcEnergy and !wallDetect) { 
+            std::cout << "Deleting valsPerLoop file (calcEnergy and wallDetect both false)" << std::endl;
             valsPerLoop.close();
             remove(valsPerLoopPath.c_str());
+        } else {
+            valsPerLoop.close();
         }
     }
 

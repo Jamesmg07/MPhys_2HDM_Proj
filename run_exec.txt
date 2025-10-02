@@ -1,7 +1,12 @@
+Compile and run simulation:
+(In Ubuntu)
 mpic++ mpi_evolution_2HDM_Z2.cpp -o Executables/mpi_evolution_2HDM_Z2
 
-
-
-mpiexec -n 4 Executables/mpi_evolution_2HDM_Z2
-
 mpirun -np 4 ./Executables/mpi_evolution_2HDM_Z2
+
+Python scripts:
+(In powershell/normal terminal)
+
+pip install -r requirements.txt
+
+python visualize_simulation.py
