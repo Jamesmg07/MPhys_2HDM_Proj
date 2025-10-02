@@ -347,7 +347,7 @@ int main(int argc, char** argv) {
 
     else if (ic_type == "monopole") {
 
-        string fields_ic_data = "/home/samb/mphys/adding_monopoles/input_data/SOR_Fields.txt";
+        string fields_ic_data = "./Data/SOR_Fields.txt";
         
         // Vectors to store the values of k and k_p
         vector<double> k;

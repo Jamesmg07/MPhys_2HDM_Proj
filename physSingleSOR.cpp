@@ -24,7 +24,7 @@ const int ic_type = 0;  // 0 is a guess at the solutions, 1 continues from a pre
 const double Mh = 1; // First two can always be set to 1 by rescaling
 const double vSM = 1;
 const double alpha = 0.25*pi;
-const double beta = 0.25*pi;
+const double bbeta = 0.25*pi;
 const double MH = 0;
 const double MHpm = 1.0;
 
@@ -88,11 +88,11 @@ int main(){
 	// else{ n1 = 0; n2 = 1; }
 
 	// Calculate the original model parameters:
-	double mu_1 = 0.5*( pow(Mh*cos(alpha),2) + pow(MH*sin(alpha),2) + (Mh*Mh - MH*MH)*tan(beta)*cos(alpha)*sin(alpha) ); // Technically mu_1^2
-	double mu_2 = 0.5*( pow(Mh*sin(alpha),2) + pow(MH*cos(alpha),2) + (Mh*Mh - MH*MH)*(1/tan(beta))*cos(alpha)*sin(alpha) ); // ^^
-	double lambda_1 = ( pow(Mh*cos(alpha),2) + pow(MH*sin(alpha),2) )/( 2*pow(vSM*cos(beta),2) );
-	double lambda_2 = ( pow(Mh*sin(alpha),2) + pow(MH*cos(alpha),2) )/( 2*pow(vSM*sin(beta),2) );
-	double lambda_3 = ( (Mh*Mh - MH*MH)*cos(alpha)*sin(alpha) + 2*MHpm*MHpm*sin(beta)*cos(beta) )/( vSM*vSM*sin(beta)*cos(beta) );
+	double mu_1 = 0.5*( pow(Mh*cos(alpha),2) + pow(MH*sin(alpha),2) + (Mh*Mh - MH*MH)*tan(bbeta)*cos(alpha)*sin(alpha) ); // Technically mu_1^2
+	double mu_2 = 0.5*( pow(Mh*sin(alpha),2) + pow(MH*cos(alpha),2) + (Mh*Mh - MH*MH)*(1/tan(bbeta))*cos(alpha)*sin(alpha) ); // ^^
+	double lambda_1 = ( pow(Mh*cos(alpha),2) + pow(MH*sin(alpha),2) )/( 2*pow(vSM*cos(bbeta),2) );
+	double lambda_2 = ( pow(Mh*sin(alpha),2) + pow(MH*cos(alpha),2) )/( 2*pow(vSM*sin(bbeta),2) );
+	double lambda_3 = ( (Mh*Mh - MH*MH)*cos(alpha)*sin(alpha) + 2*MHpm*MHpm*sin(bbeta)*cos(bbeta) )/( vSM*vSM*sin(bbeta)*cos(bbeta) );
 	double lambda_4 = -2*pow(MHpm/vSM,2);
 
 
