@@ -10,3 +10,43 @@ Python scripts:
 pip install -r requirements.txt
 
 python visualize_simulation.py
+
+
+READ APPENDIX FOR LAMBDA AND ETA FOR FIXING SCALE
+
+DOMINIK FOR M LAMBDA RELATION
+
+OTHER PAPER FOR LAMBDA IN POTENTIALS
+
+R params in"GLOBAL MONO "PAPAER
+
+ETA FOR R CONSTRAINTS IN DEFERCS IS RELATED TO VSM (SM POTENTIAL)
+
+R 1 ETC ARE 0 AT MONOPOLE POINT
+
+WINDING UNCHANGING UNLESS SYMMETRY BROKEN
+
+TO DO:
+
+-TEST DIFFERENT T MATRICES ON M AND A (DIFFERENT TWISTS IN R AND N SPACE)
+-DIFFERENT HIGGS MASS VALUES
+
+useful texts:
+
+vaccum top- braun
+simulation - battye
+global monopoles - battye?
+electroweak dumbells 
+
+goals:
+sams running, 2 monopole setup?, random, reproduce sams results
+
+for sams change distances and point files
+
+EVENTUALLY GET GIFS OF MONOPOLES MOVING 
+
+EVENTUALLY CLASSIFY AND FIND DUMBELLS FROM THE RANDOM CASE
+
+TRY GAMMA PI/2
+
+FOR 3D DO AN ISOSURFACE
