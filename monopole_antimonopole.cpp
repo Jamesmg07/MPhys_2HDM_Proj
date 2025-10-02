@@ -39,7 +39,7 @@ const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + 
 
 const bool calcEnergy = true; // Output Choices
 const bool wallDetect = false;
-const bool finalOut = false;
+const bool finalOut = true;
 
 const bool monopoleDetect = false;
 
@@ -47,7 +47,7 @@ const bool makeGif = true;
 const int saveFreq = 2;
 
 const string file_path = __FILE__;
-const string dir_path = "./Data/"; // Data Directory Location (currently wherever code is located)
+const string dir_path = "./Data/"; // Data Directory Location - fixed path
 
 const int countRate = 20; // Increments for simulation progress status output.
 
@@ -134,12 +134,28 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    // Add debugging output
+    if (rank == 0) {
+        cout << "Starting monopole-antimonopole simulation..." << endl;
+        cout << "Grid size: " << nx << "x" << ny << "x" << nz << endl;
+        cout << "Total grid points: " << nPos << endl;
+        cout << "Number of MPI processes: " << size << endl;
+        cout << "Number of timesteps: " << nt << endl;
+        cout << "Initial condition type: " << ic_type << endl;
+    }
+
     long long int chunk = nPos / size;
     long long int chunkRem = nPos - size * chunk;
 
     long long int coreSize;
     if (rank >= chunkRem) { coreSize = chunk; }
     else { coreSize = chunk + 1; }
+
+    if (rank == 0) {
+        cout << "Core size per process: " << coreSize << endl;
+        cout << "Looking for initial condition file: " << "./Data/SOR_Fields.txt" << endl;
+    }
+
 
     // Calculate the position of the start of the chunk in the full array
     long long int coreStart, coreEnd;
@@ -203,7 +219,7 @@ int main(int argc, char** argv) {
 
     vector<vector<double>> k_kp(4, vector<double>(2 * totSize, 0.0)); 
     vector<vector<double>> g_gp(4, vector<double>(2 * totSize, 0.0));
-
+    
 
 
     struct timeval start, end;
@@ -347,7 +363,22 @@ int main(int argc, char** argv) {
 
     else if (ic_type == "monopole") {
 
-        string fields_ic_data = "./Data/SOR_Fields.txt";
+        string fields_ic_data = dir_path + "SOR_Fields.txt";
+        
+        // Check if file exists
+        ifstream test_file(fields_ic_data);
+        if (!test_file.good()) {
+            if (rank == 0) {
+                cout << "ERROR: Cannot find initial condition file: " << fields_ic_data << endl;
+                cout << "Make sure the SOR_Fields.txt file exists in the Data directory." << endl;
+            }
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        test_file.close();
+
+        if (rank == 0) {
+            cout << "Found initial condition file, loading..." << endl;
+        }
         
         // Vectors to store the values of k and k_p
         vector<double> k;

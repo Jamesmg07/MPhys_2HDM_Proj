@@ -69,9 +69,9 @@ int main(){
     string file_path = __FILE__;
     string dir_path = file_path.substr(0,file_path.find_last_of('/'));
 
-    string valsPath = dir_path + "/Data/singleVals.txt";
-    string SOR_FieldsPath = dir_path + "/Data/SOR_Fields.txt";
-    string icPath = dir_path + "/Data/SOR_Fields.txt";
+    string valsPath = "./Data/singleVals.txt";
+    string SOR_FieldsPath = "./Data/SOR_Fields.txt";
+    string icPath = "./Data/SOR_Fields.txt";
     //string aniPath = dir_path + "/ani.txt";
     //string icPath = dir_path + "/SavedData/P4_nx10001_h0005_chi04338.txt";
 

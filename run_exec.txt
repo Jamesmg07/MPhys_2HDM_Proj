@@ -50,3 +50,9 @@ EVENTUALLY CLASSIFY AND FIND DUMBELLS FROM THE RANDOM CASE
 TRY GAMMA PI/2
 
 FOR 3D DO AN ISOSURFACE
+
+Questions:
+
+- Check source of M and lambda relations
+- To equate Λ1 & λ2 we get tan^2beta=1 so tanbeta = +-1
+-defines 2 mixing angles a and b? is that because beta is pi/4 and alpha must b pi/4? but in the lambda equations theyre used interchangably (ASK ADAM?)
