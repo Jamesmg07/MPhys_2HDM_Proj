@@ -57,3 +57,22 @@ Questions:
 - To equate Λ1 & λ2 we get tan^2beta=1 so tanbeta = +-1
 -defines 2 mixing angles a and b? is that because beta is pi/4 and alpha must b pi/4? but in the lambda equations theyre used interchangably (ASK ADAM?)
 - OPPOSITE WINDING? U2 MATRIX? DOESNT FULLY POINT OUT?
+
+
+07/10/2025
+Plotting the number of walls, might go with t^-1
+Set up a meeting time with Sotirios, password given in person
+Centaurus is a cluster of machines, sirius is individual machines that have a shared memory
+Eventually do random ICs and specific ICs with 3d simulations of global monopoles using Sam’s code.
+Check what takes longest computation difference between 2D & 3D
+Check for minus signs for arrows cus it literally looks flipped when compared to sams
+Start with γ = 0 or γ = π to make it easier to compare with Sam’s as the non-extremal values have some complicated effects on the R vector directions.
+Try making it one monopole instead of 2
+Change one of the U’s into identity (play around with the ansatz)
+Monopole has no twist, anti-monopole gets the twist (usually because anti-monopole goes in after the monopole)
+Use the contour-plot to plot the magnitude of R (R = sq(R1^2 + R2^2 + R3^2))
+Rotate the frame to see which is monopole and which is anti-monopole
+Centaurus might be the best one
+Very the parameter ε = M_Hpm / M_h by varying M_Hpm
+Something about scaling M_h so that it matches Steven’s code (just change the scalar next to 125).
+Make sure the mass parameters match the profile function set by the SOR file
