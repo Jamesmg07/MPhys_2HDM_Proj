@@ -45,6 +45,10 @@ for sams change distances and point files
 
 EVENTUALLY GET GIFS OF MONOPOLES MOVING 
 
+CALCULATE THE NUUMBER OF WALLS IN THE DOMAIN CODE, SHOULD GO AS 1/TIME (PLOT LOG LOG)
+
+ENERGY CALCULATIONS AND SEPARATION
+
 EVENTUALLY CLASSIFY AND FIND DUMBELLS FROM THE RANDOM CASE
 
 TRY GAMMA PI/2
@@ -57,6 +61,8 @@ Questions:
 - To equate Λ1 & λ2 we get tan^2beta=1 so tanbeta = +-1
 -defines 2 mixing angles a and b? is that because beta is pi/4 and alpha must b pi/4? but in the lambda equations theyre used interchangably (ASK ADAM?)
 - OPPOSITE WINDING? U2 MATRIX? DOESNT FULLY POINT OUT?
+
+
 
 
 07/10/2025
@@ -76,3 +82,9 @@ Centaurus might be the best one
 Very the parameter ε = M_Hpm / M_h by varying M_Hpm
 Something about scaling M_h so that it matches Steven’s code (just change the scalar next to 125).
 Make sure the mass parameters match the profile function set by the SOR file
+
+
+
+J NOTES:
+
+IMRPVOEMENT IN BC EFFICIENCY (30-40%) ESTIMATED SPEEDUP, REDUCTION FROM 196MIL  TO262K CALCS IN BOUNDARY CONDITION CHECK

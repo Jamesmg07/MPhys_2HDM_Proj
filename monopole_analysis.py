@@ -10,7 +10,9 @@ DATA_DIR = Path("./Data/")
 OUTPUT_DIR = Path("./Plots/")
 nx, ny, nz = 64, 64, 64
 dx, dy, dz = 0.5, 0.5, 0.5
+dt = 0.1  # Simulation timestep
 nPos = nx * ny * nz
+nt = int((nx * dx) / (2 * dt))  # Total timesteps: 160
 
 # Original monopole positions from C++ code (index positions)
 MONOPOLE_1_POS = (31.5, 31.5, 43.5)  # Index positions
@@ -29,11 +31,99 @@ def extract_timestep(filename):
     match = re.search(r'timestep=(\d+)', filename.name)
     return int(match.group(1)) if match else 0
 
-def find_t_gamma_files():
-    """Find all t_gamma R-values files from the simulation"""
-    files = list(DATA_DIR.glob("t_gamma=2pi_3_R_values_timestep=*_nx64_*.txt"))
+def find_energy_files():
+    """Find energy files from the simulation"""
+    # Look for energy files with gamma in the name
+    files = list(DATA_DIR.glob("energy_gamma=*_nx64_*.txt"))
+    return files
+
+def find_r_values_files():
+    """Find all R-values files from the simulation"""
+    # Updated to look for the new gamma-dependent naming
+    files = list(DATA_DIR.glob("R_values_gamma=*_timestep=*_nx64_*.txt"))
     files.sort(key=extract_timestep)
     return files
+
+def load_energy_data(filepath):
+    """Load energy data from file"""
+    try:
+        # Energy files should have one column: Energy
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+        
+        # Skip header if present
+        energy_values = []
+        for line in lines:
+            line = line.strip()
+            if line and not line.startswith('Energy'):  # Skip header
+                try:
+                    energy_values.append(float(line.split()[0]))  # Take first column
+                except (ValueError, IndexError):
+                    continue
+        
+        return np.array(energy_values)
+    except Exception as e:
+        print(f"Error loading energy data from {filepath}: {e}")
+        return None
+
+def plot_energy_vs_time(energy_files):
+    """Plot energy evolution over time"""
+    print("\nAnalyzing energy evolution...")
+    
+    if not energy_files:
+        print("  No energy files found!")
+        return
+    
+    for energy_file in energy_files:
+        print(f"  Loading energy data from: {energy_file.name}")
+        
+        energy_data = load_energy_data(energy_file)
+        
+        if energy_data is None or len(energy_data) == 0:
+            print(f"    Error: Could not load energy data from {energy_file}")
+            continue
+        
+        # Create time array
+        timesteps = np.arange(len(energy_data))
+        time_values = timesteps * dt  # Convert to physical time
+        
+        # Extract gamma value from filename for title
+        gamma_match = re.search(r'gamma=([^_]+)', energy_file.name)
+        gamma_str = gamma_match.group(1) if gamma_match else "unknown"
+        
+        plt.figure(figsize=(12, 8))
+        
+        # Plot energy vs time
+        plt.subplot(2, 1, 1)
+        plt.plot(time_values, energy_data, 'b-', linewidth=2, label='Total Energy')
+        plt.xlabel('Time')
+        plt.ylabel('Energy')
+        plt.title(f'Energy Evolution (γ = {gamma_str})')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        
+        # Plot energy vs timestep
+        plt.subplot(2, 1, 2)
+        plt.plot(timesteps, energy_data, 'r-', linewidth=2, label='Total Energy')
+        plt.xlabel('Timestep')
+        plt.ylabel('Energy')
+        plt.title(f'Energy Evolution vs Timestep (γ = {gamma_str})')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        
+        # Add simulation info
+        plt.figtext(0.02, 0.02, f'Grid: {nx}×{ny}×{nz}, dt = {dt}, Total steps = {len(energy_data)}', 
+                   fontsize=10, ha='left')
+        
+        save_path = OUTPUT_DIR / f'energy_evolution_gamma_{gamma_str}.png'
+        save_and_close_plot(save_path, f"    Saved: energy_evolution_gamma_{gamma_str}.png")
+        
+        # Print energy statistics
+        print(f"    Energy statistics for γ = {gamma_str}:")
+        print(f"      Initial energy: {energy_data[0]:.6f}")
+        print(f"      Final energy: {energy_data[-1]:.6f}")
+        print(f"      Energy change: {energy_data[-1] - energy_data[0]:.6f}")
+        print(f"      Energy conservation: {abs(energy_data[-1] - energy_data[0])/energy_data[0]*100:.4f}%")
 
 def load_r_field_data(filepath):
     """Load R-field data and reshape to 3D grid"""
@@ -60,72 +150,71 @@ def save_and_close_plot(save_path, message):
     plt.close()
 
 def plot_xz_slice_vectors(r_fields, timestep, save_individual=True):
-    """Plot x-z slice with R-field vectors, z as vertical axis"""
+    """Plot single x-z slice with R1²+R2²+R3² colormap and (R1,R3) vectors, z as vertical axis"""
     
     slice_index = int(MONOPOLE_CENTER_Y)
     
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     
     # Extract slices (x-z plane at fixed y)
     field1_slice = r_fields['R1nt'][:, slice_index, :]  # R1
+    field2_slice = r_fields['R2nt'][:, slice_index, :]  # R2
     field3_slice = r_fields['R3nt'][:, slice_index, :]  # R3
+    
+    # Calculate R1² + R2² + R3² for monopole identification
+    monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
     
     # Create coordinate grids - z as vertical (y-axis), x as horizontal (x-axis)
     x_coords = np.arange(nx) * dx
     z_coords = np.arange(nz) * dz
     X, Z = np.meshgrid(x_coords, z_coords)
     
-    field_names = ['R1nt', 'R3nt']
-    field_slices = [field1_slice, field3_slice]
+    # Plot monopole field colormap
+    # Transpose to make z vertical
+    im = ax.contourf(X, Z, monopole_field.T, levels=20, cmap='plasma', vmin=0, vmax=np.max(monopole_field))
     
-    # Plot both fields
-    for idx, (field_slice, field_name, ax) in enumerate(zip(field_slices, field_names, axes)):
-        
-        # Transpose to make z vertical
-        im = ax.contourf(X, Z, field_slice.T, levels=20, cmap='RdBu_r', vmin=-1, vmax=1)
-        
-        # Plot arrows (subsample for clarity)
-        step = 3
-        for i in range(0, X.shape[0], step):
-            for j in range(0, X.shape[1], step):
-                ax.quiver(X[i, j], Z[i, j], 
-                         field1_slice.T[i, j], field3_slice.T[i, j], 
-                         scale=3, width=0.005, alpha=0.9, color='black')
-        
-        ax.set_xlabel('x position')
-        ax.set_ylabel('z position')
-        ax.set_title(f'{field_name} field + (R1,R3) vectors (y={slice_index}) - t={timestep}')
-        
-        # Mark original monopole positions with green crosses
-        x1_phys = MONOPOLE_1_POS[0] * dx
-        z1_phys = MONOPOLE_1_POS[2] * dz
-        x2_phys = MONOPOLE_2_POS[0] * dx
-        z2_phys = MONOPOLE_2_POS[2] * dz
-        
-        ax.scatter([x1_phys], [z1_phys], color='green', s=150, marker='+', linewidth=4, label='Original Monopole')
-        ax.scatter([x2_phys], [z2_phys], color='green', s=150, marker='+', linewidth=4, label='Original Antimonopole')
-        ax.legend()
-        
-        cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label(f'{field_name} field strength')
+    # Plot arrows (subsample for clarity) - reduced size by 0.75
+    step = 3
+    for i in range(0, X.shape[0], step):
+        for j in range(0, X.shape[1], step):
+            ax.quiver(X[i, j], Z[i, j], 
+                     field1_slice.T[i, j], field3_slice.T[i, j], 
+                     scale=4, width=0.004, alpha=0.9, color='white')  # Increased scale, reduced width
+    
+    ax.set_xlabel('x position')
+    ax.set_ylabel('z position')
+    ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}')
+    
+    # Mark original monopole positions with green crosses
+    x1_phys = MONOPOLE_1_POS[0] * dx
+    z1_phys = MONOPOLE_1_POS[2] * dz
+    x2_phys = MONOPOLE_2_POS[0] * dx
+    z2_phys = MONOPOLE_2_POS[2] * dz
+    
+    ax.scatter([x1_phys], [z1_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Monopole')
+    ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
+    ax.legend()
+    
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label('R1² + R2² + R3² (monopole field strength)')
     
     if save_individual:
-        save_and_close_plot(OUTPUT_DIR / f'xz_slice_vectors_t{timestep}.png',
-                           f"    Saved: xz_slice_vectors_t{timestep}.png")
+        save_and_close_plot(OUTPUT_DIR / f'xz_monopole_field_t{timestep}.png',
+                           f"    Saved: xz_monopole_field_t{timestep}.png")
     else:
         return fig
 
-def create_gif_animation(t_gamma_files, n_frames=20):
-    """Create GIF animation of the x-z slice evolution"""
+def create_gif_animation(r_values_files, n_frames=20):
+    """Create GIF animation of the x-z slice evolution with monopole field"""
     print(f"\nCreating GIF animation with {n_frames} frames...")
     
-    if len(t_gamma_files) < n_frames:
-        print(f"Not enough timestep files for {n_frames} frames, using {len(t_gamma_files)} frames")
-        n_frames = len(t_gamma_files)
+    if len(r_values_files) < n_frames:
+        print(f"Not enough timestep files for {n_frames} frames, using {len(r_values_files)} frames")
+        n_frames = len(r_values_files)
     
     # Select files at regular intervals
-    indices = np.linspace(0, len(t_gamma_files)-1, n_frames, dtype=int)
-    selected_files = [t_gamma_files[i] for i in indices]
+    indices = np.linspace(0, len(r_values_files)-1, n_frames, dtype=int)
+    selected_files = [r_values_files[i] for i in indices]
     
     # Load all data first
     all_data = []
@@ -139,7 +228,7 @@ def create_gif_animation(t_gamma_files, n_frames=20):
         timestep = extract_timestep(file)
         r_fields = load_r_field_data(file)
         
-        if r_fields and all(key in r_fields for key in ['R1nt', 'R3nt']):
+        if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
             all_data.append(r_fields)
             timesteps.append(timestep)
         else:
@@ -153,7 +242,7 @@ def create_gif_animation(t_gamma_files, n_frames=20):
     print("  Creating animation...")
     
     # Set up the figure and axes
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     
     # Create coordinate grids
     slice_index = int(MONOPOLE_CENTER_Y)
@@ -161,52 +250,46 @@ def create_gif_animation(t_gamma_files, n_frames=20):
     z_coords = np.arange(nz) * dz
     X, Z = np.meshgrid(x_coords, z_coords)
     
-    # Initialize empty plots
-    contour_plots = []
-    quiver_plots = []
-    
     def animate(frame):
-        # Clear previous plots
-        for ax in axes:
-            ax.clear()
+        # Clear previous plot
+        ax.clear()
         
         r_fields = all_data[frame]
         timestep = timesteps[frame]
         
         # Extract slices
         field1_slice = r_fields['R1nt'][:, slice_index, :]  # R1
+        field2_slice = r_fields['R2nt'][:, slice_index, :]  # R2
         field3_slice = r_fields['R3nt'][:, slice_index, :]  # R3
         
-        field_names = ['R1nt', 'R3nt']
-        field_slices = [field1_slice, field3_slice]
+        # Calculate R1² + R2² + R3² for monopole identification
+        monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
         
-        # Plot both fields
-        for idx, (field_slice, field_name, ax) in enumerate(zip(field_slices, field_names, axes)):
-            
-            # Transpose to make z vertical
-            im = ax.contourf(X, Z, field_slice.T, levels=20, cmap='RdBu_r', vmin=-1, vmax=1)
-            
-            # Plot arrows (subsample for clarity)
-            step = 4  # Slightly larger step for GIF performance
-            for i in range(0, X.shape[0], step):
-                for j in range(0, X.shape[1], step):
-                    ax.quiver(X[i, j], Z[i, j], 
-                             field1_slice.T[i, j], field3_slice.T[i, j], 
-                             scale=3, width=0.005, alpha=0.8, color='black')
-            
-            ax.set_xlabel('x position')
-            ax.set_ylabel('z position')
-            ax.set_title(f'{field_name} field + (R1,R3) vectors (y={slice_index}) - t={timestep}')
-            
-            # Mark original monopole positions with green crosses
-            x1_phys = MONOPOLE_1_POS[0] * dx
-            z1_phys = MONOPOLE_1_POS[2] * dz
-            x2_phys = MONOPOLE_2_POS[0] * dx
-            z2_phys = MONOPOLE_2_POS[2] * dz
-            
-            ax.scatter([x1_phys], [z1_phys], color='green', s=150, marker='+', linewidth=4, label='Original Monopole')
-            ax.scatter([x2_phys], [z2_phys], color='green', s=150, marker='+', linewidth=4, label='Original Antimonopole')
-            ax.legend()
+        # Plot monopole field colormap
+        # Transpose to make z vertical
+        im = ax.contourf(X, Z, monopole_field.T, levels=20, cmap='plasma', vmin=0, vmax=2.0)  # Fixed vmax for consistency
+        
+        # Plot arrows (subsample for clarity) - reduced size by 0.75
+        step = 4  # Slightly larger step for GIF performance
+        for i in range(0, X.shape[0], step):
+            for j in range(0, X.shape[1], step):
+                ax.quiver(X[i, j], Z[i, j], 
+                         field1_slice.T[i, j], field3_slice.T[i, j], 
+                         scale=4, width=0.004, alpha=0.8, color='white')  # Reduced size
+        
+        ax.set_xlabel('x position')
+        ax.set_ylabel('z position')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}')
+        
+        # Mark original monopole positions with cyan crosses
+        x1_phys = MONOPOLE_1_POS[0] * dx
+        z1_phys = MONOPOLE_1_POS[2] * dz
+        x2_phys = MONOPOLE_2_POS[0] * dx
+        z2_phys = MONOPOLE_2_POS[2] * dz
+        
+        ax.scatter([x1_phys], [z1_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Monopole')
+        ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
+        ax.legend()
         
         plt.tight_layout()
         return []
@@ -215,29 +298,29 @@ def create_gif_animation(t_gamma_files, n_frames=20):
     anim = animation.FuncAnimation(fig, animate, frames=len(all_data), interval=200, blit=False, repeat=True)
     
     # Save as GIF
-    gif_path = OUTPUT_DIR / 'monopole_evolution_xz_slice.gif'
+    gif_path = OUTPUT_DIR / 'monopole_field_evolution_xz_slice.gif'
     print(f"  Saving GIF to: {gif_path}")
     
     try:
         anim.save(gif_path, writer='pillow', fps=5, dpi=150)
-        print(f"  ✓ Successfully saved GIF: monopole_evolution_xz_slice.gif")
+        print(f"  ✓ Successfully saved GIF: monopole_field_evolution_xz_slice.gif")
     except Exception as e:
         print(f"  Error saving GIF: {e}")
         print("  Note: Make sure Pillow is installed: pip install Pillow")
     
     plt.close(fig)
 
-def analyze_at_intervals(t_gamma_files, n_intervals=12):
-    """Create x-z plots at spaced intervals"""
-    if len(t_gamma_files) < n_intervals:
+def analyze_at_intervals(r_values_files, n_intervals=12):
+    """Create x-z monopole field plots at spaced intervals"""
+    if len(r_values_files) < n_intervals:
         print(f"Not enough timestep files for {n_intervals} intervals")
         return
     
     # Select files at regular intervals
-    indices = np.linspace(0, len(t_gamma_files)-1, n_intervals, dtype=int)
-    selected_files = [t_gamma_files[i] for i in indices]
+    indices = np.linspace(0, len(r_values_files)-1, n_intervals, dtype=int)
+    selected_files = [r_values_files[i] for i in indices]
     
-    print(f"\nCreating x-z slice plots for {n_intervals} selected timesteps...")
+    print(f"\nCreating x-z monopole field plots for {n_intervals} selected timesteps...")
     
     for plot_num, file in enumerate(selected_files):
         timestep = extract_timestep(file)
@@ -245,8 +328,8 @@ def analyze_at_intervals(t_gamma_files, n_intervals=12):
         
         r_fields = load_r_field_data(file)
         
-        if r_fields and all(key in r_fields for key in ['R1nt', 'R3nt']):
-            print(f"    Creating x-z slice plot for timestep {timestep}...")
+        if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
+            print(f"    Creating x-z monopole field plot for timestep {timestep}...")
             plot_xz_slice_vectors(r_fields, timestep)
             print(f"    ✓ Completed plot for timestep {timestep}")
         else:
@@ -255,17 +338,18 @@ def analyze_at_intervals(t_gamma_files, n_intervals=12):
 # Main analysis code
 if __name__ == "__main__":
     print("="*60)
-    print("MONOPOLE VECTOR FIELD ANALYSIS")
+    print("MONOPOLE FIELD ANALYSIS WITH ENERGY EVOLUTION")
     print("="*60)
     
     # Set matplotlib to non-interactive mode
     import matplotlib
     matplotlib.use('Agg')
     
-    total_steps = 4
+    total_steps = 5
     
     print_progress(1, total_steps, "Initializing analysis...")
     print(f"Looking for files in: {DATA_DIR}")
+    print(f"Simulation parameters: Grid={nx}×{ny}×{nz}, dt={dt}, Expected timesteps={nt}")
     
     if not DATA_DIR.exists():
         print(f"ERROR: Data directory {DATA_DIR} does not exist!")
@@ -274,21 +358,29 @@ if __name__ == "__main__":
     print_progress(2, total_steps, "Searching for data files...")
     
     # Find files
-    t_gamma_files = find_t_gamma_files()
+    energy_files = find_energy_files()
+    r_values_files = find_r_values_files()
     
-    print(f"Found {len(t_gamma_files)} t_gamma files")
+    print(f"Found {len(energy_files)} energy files")
+    print(f"Found {len(r_values_files)} R-values files")
     
-    if not t_gamma_files:
-        print("ERROR: No t_gamma files found!")
+    if not energy_files and not r_values_files:
+        print("ERROR: No data files found!")
         exit()
     
-    print_progress(3, total_steps, "Creating x-z slice vector plots...")
-    analyze_at_intervals(t_gamma_files, n_intervals=12)
+    print_progress(3, total_steps, "Analyzing energy evolution...")
+    plot_energy_vs_time(energy_files)
     
-    print_progress(4, total_steps, "Creating GIF animation...")
-    create_gif_animation(t_gamma_files, n_frames=25)
+    if r_values_files:
+        print_progress(4, total_steps, "Creating x-z monopole field plots...")
+        analyze_at_intervals(r_values_files, n_intervals=12)
+        
+        print_progress(5, total_steps, "Creating monopole field GIF animation...")
+        create_gif_animation(r_values_files, n_frames=25)
+    else:
+        print("Skipping R-field analysis (no R-values files found)")
     
-    print(f"All vector plots and GIF saved to: {OUTPUT_DIR}")
+    print(f"All plots saved to: {OUTPUT_DIR}")
     print("="*60)
     print("ANALYSIS COMPLETE")
     print("="*60)
