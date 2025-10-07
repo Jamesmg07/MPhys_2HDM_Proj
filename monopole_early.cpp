@@ -37,21 +37,6 @@ const int seed = 73;
 
 const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + to_string(seed) + "_Z2";
 
-// Create gamma-dependent file tag
-string gamma_str;
-if (gamma == 0) {
-    gamma_str = "gamma=0";
-} else if (abs(gamma - pi/3) < 1e-10) {
-    gamma_str = "gamma=pi_3";
-} else if (abs(gamma - 2*pi/3) < 1e-10) {
-    gamma_str = "gamma=2pi_3";
-} else if (abs(gamma - pi) < 1e-10) {
-    gamma_str = "gamma=pi";
-} else {
-    // For arbitrary gamma values, format as decimal
-    gamma_str = "gamma=" + to_string(gamma/pi).substr(0,5) + "pi";
-}
-
 const bool calcEnergy = true; // Output Choices
 const bool wallDetect = false;
 const bool finalOut = true;
@@ -71,21 +56,7 @@ const string bc_type = "fixed";
 
 const int nb_fields = 8; // Number of fields in simulation
 
-// Monopole/Antimonopole Configuration Parameters
-const double gamma = (0 * pi); // Phase difference parameter
 
-// Monopole Position Parameters (in grid coordinates)
-const double monopole1_x_offset = 0.0;     // Offset from center in x
-const double monopole1_y_offset = 0.0;     // Offset from center in y  
-const double monopole1_z_offset = 23.0;    // Offset from center in z (z1 = center + 23)
-
-const double monopole2_x_offset = 0.0;     // Offset from center in x
-const double monopole2_y_offset = 0.0;     // Offset from center in y
-const double monopole2_z_offset = -25.0;   // Offset from center in z (z2 = center - 25)
-
-// Monopole Field Profile Parameters
-const double monopole_grid_spacing = 0.01; // Radial grid spacing for SOR_Fields.txt interpolation
-const double monopole_prefactor = pow(2, -1.5); // Field normalization factor (v_sm / sqrt(2))
 
 
 
@@ -96,7 +67,7 @@ const long double m_h = 125;
 const long double V_sm = 246;
 const long double m_H = 0;
 const long double m_A = 0;
-const long double m_H_pm = 125;
+const long double m_H_pm = 1.0*m_h;
 
 // Scaled Mass and Energy Paramaters (NOT to be edited)
 const long double M_h = m_h / m_h;
@@ -264,15 +235,7 @@ int main(int argc, char** argv) {
     }
 
     struct timeval start, end;
-    struct timeval setup_start, setup_end;
-    struct timeval ic_start, ic_end;
-    struct timeval evolution_start, evolution_end;
-    
-    if (rank == 0) { 
-        gettimeofday(&start, NULL);
-        gettimeofday(&setup_start, NULL);
-        cout << "Starting monopole-antimonopole simulation timing..." << endl;
-    }
+    if (rank == 0) { gettimeofday(&start, NULL); }
 
     stringstream ss;
 
@@ -289,7 +252,7 @@ int main(int argc, char** argv) {
     string finalFieldPath = dir_path + "vortices_ gif_finalFields" + outTag + ".txt";
     ofstream finalFields(finalFieldPath.c_str());
 
-    string valsPerLoopPath = dir_path + "energy_" + gamma_str + outTag + ".txt";
+    string valsPerLoopPath = dir_path + "t_gamma=2pi_3_energy" + outTag + ".txt";
     ofstream valsPerLoop(valsPerLoopPath.c_str());
 
     string monopoleNumberPath = dir_path + "2m_monopoleNumber" + outTag + ".txt";
@@ -299,21 +262,18 @@ int main(int argc, char** argv) {
         cout << "STEP 7: Output files created" << endl;
     }
 
-    //MONOPOLE POSITIONS - calculated from offsets
-    // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
-    x1 = 0.5 * (nx - 1) + monopole1_x_offset;
-    y1 = 0.5 * (ny - 1) + monopole1_y_offset;
-    z1 = 0.5 * (nz - 1) + monopole1_z_offset;
+    //DISTANCE BETWEEN MONOPOLE AND ANTIMONOPOLE
+    // Index values (not neccessarily on grid and hence not integers) of the zero coordinate.
+    x1 = 0.5 * (nx - 1);
+    y1 = 0.5 * (ny - 1);
+    z1 = 0.5 * (nz + 23); // z1 = 76
 
-    x2 = 0.5 * (nx - 1) + monopole2_x_offset;
-    y2 = 0.5 * (ny - 1) + monopole2_y_offset;
-    z2 = 0.5 * (nz - 1) + monopole2_z_offset;
+    x2 = 0.5 * (nx - 1);
+    y2 = 0.5 * (ny - 1);
+    z2 = 0.5 * (nz - 25); // z2 = 52
 
     if (rank == 0) {
         cout << "STEP 8: Monopole positions calculated" << endl;
-        gettimeofday(&setup_end, NULL);
-        cout << "Setup and MPI initialization time: " << (setup_end.tv_sec - setup_start.tv_sec) + (setup_end.tv_usec - setup_start.tv_usec)/1000000.0 << "s" << endl;
-        gettimeofday(&ic_start, NULL);
     }
 
     if (ic_type == "random") {
@@ -483,7 +443,7 @@ int main(int argc, char** argv) {
             double z_1 = ( (i+dataStart)%nz - z1 )*dz;
 
             double r_1 = pow(x_1*x_1 + y_1*y_1 + z_1*z_1, 0.5); // Calculate r_pos
-            double r_pos_1 = r_1 / monopole_grid_spacing; //Position of r in the smaller grid
+            double r_pos_1 = r_1 / 0.01; //Position of r in the smaller grid
             int r_c_1 = static_cast<int>(round(r_pos_1)); 
             int r_m_1 = r_c_1 - 1;
             int r_p_1 = r_c_1 + 1;
@@ -534,7 +494,7 @@ int main(int argc, char** argv) {
             double z_2 = ( (i+dataStart)%nz - z2 )*dz;
 
             double r_2 = pow(x_2*x_2 + y_2*y_2 + z_2*z_2, 0.5); // Calculate r_pos
-            double r_pos_2 = r_2 / monopole_grid_spacing; //Position of r in the smaller grid
+            double r_pos_2 = r_2 / 0.01; //Position of r in the smaller grid
             int r_c_2 = static_cast<int>(round(r_pos_2)); 
             int r_m_2 = r_c_2 - 1;
             int r_p_2 = r_c_2 + 1;
@@ -650,6 +610,7 @@ int main(int argc, char** argv) {
 
             }
 
+            double gamma = (2 * pi / 3);
 
             // Define the T matrix
             complex<double> T[2][2] = {
@@ -713,10 +674,11 @@ int main(int argc, char** argv) {
 
             
 
-            // Multiply the tensor product by the prefactor
+            // Multiply the tensor product by the prefactor v_sm / sqrt(2)
+            double prefactor = (pow(2, -1.5));
             for (int r = 0; r < 4; ++r) {
                 for (int c = 0; c < 4; ++c) {
-                    TP[r][c] *= monopole_prefactor;
+                    TP[r][c] *= prefactor;
                 }
             }
 
@@ -890,7 +852,6 @@ int main(int argc, char** argv) {
                 R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2)
                     - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
                 R0nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) + pow(fieldsOutnt[4][j], 2) + pow(fieldsOutnt[5][j], 2) + pow(fieldsOutnt[6][j], 2) + pow(fieldsOutnt[7][j], 2);
-                
 
                 // Write field values to fields file, ensuring explicit output of 0.0
                 test_fieldsFile << (fieldsOutnt[0][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[0][j])) << " "
@@ -925,11 +886,10 @@ int main(int argc, char** argv) {
 
     gettimeofday(&end, NULL);
 
-    if (rank == 0) { 
-        cout << "Total initial data loaded/generated in: " << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec)/1000000.0 << "s" << endl;
-        gettimeofday(&evolution_start, NULL);
-        cout << "Starting field evolution..." << endl;
-    }
+    if (rank == 0) { cout << "Initial data loaded/generated in: " << end.tv_sec - start.tv_sec << "s" << endl; }
+
+
+
 
     // Main for loop that evolves the fields:
     for (TimeStep = 0; TimeStep < nt; TimeStep++) {
@@ -940,15 +900,18 @@ int main(int argc, char** argv) {
 
         double fric, tau;
 
+
         // Expansion during damping check:
         if (expandDamp) { tau = 1 + (ntHeld + TimeStep) * dt; }
         else { tau = 1 + (ntHeld + TimeStep - damped_nt) * dt; }
+
 
         // Is damping switched on or not?
         if (TimeStep < damped_nt) {
 
             if (expandDamp) { fric = dampFac + alpha * scaling / tau; } // denominator is conformal time
             else { fric = dampFac; }
+
         }
         else {
 
@@ -960,8 +923,6 @@ int main(int argc, char** argv) {
         tNow = (TimeStep + 1) % 2;
         tPast = TimeStep % 2;
 
-        // Pre-calculate scaling factor to avoid repeated computation
-        double tau_scaling_bbeta = pow(pow(tau, scaling), bbeta);
 
         if (rank == 0 && TimeStep == 0) {
             cout << "STEP 12: Damping and expansion parameters calculated" << endl;
@@ -973,37 +934,20 @@ int main(int argc, char** argv) {
         localNDW = 0;
         localADW_simple = 0;
         localADW_full = 0;
-        localNM = 0;
 
-        // Precompute boundary conditions for efficiency
-        vector<bool> isBoundaryPoint(totSize, false);
-        vector<bool> isXBoundary(totSize, false);
-        vector<bool> isYBoundary(totSize, false);
-        vector<bool> isZBoundary(totSize, false);
-        
-        // Precompute boundary status for all points in this process's domain
-        if (bc_type == "fixed") {
-            for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
-                double i_coord = (i + dataStart) / (ny * nz);
-                double j_coord = (((i + dataStart) / nz) % ny);
-                double k_coord = ((i + dataStart) % nz);
-                
-                bool isOnBoundary = (i_coord == 0 || i_coord == nx-1 || 
-                                   j_coord == 0 || j_coord == ny-1 || 
-                                   k_coord == 0 || k_coord == nz-1);
-                
-                isBoundaryPoint[i] = isOnBoundary;
-                isXBoundary[i] = (i_coord == 1 || i_coord == nx-2);
-                isYBoundary[i] = (j_coord == 1 || j_coord == ny-2);
-                isZBoundary[i] = (k_coord == 1 || k_coord == nz-2);
-            }
-        }
+        localNM = 0;
 
         //Loops over and evolves all assigned data points
         for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) { 
             
-            // Skip boundary points if using fixed BCs
-            if (bc_type == "fixed" && isBoundaryPoint[i]) {
+            //Fixed BCs
+
+            double i_coord = (i + dataStart) / (ny * nz);
+            double j_coord = (((i + dataStart) / nz) % ny);
+            double k_coord = ((i + dataStart) % nz);
+
+            if (bc_type == "fixed" and (i_coord == 0 or i_coord == nx-1 or j_coord == 0 or j_coord == ny-1 or k_coord == 0 or k_coord == nz-1)) {
+
                 continue;
             }
             
@@ -1015,23 +959,18 @@ int main(int argc, char** argv) {
             imxx = i - 2 * ny * nz;
             ipxx = i + 2 * ny * nz;
 
-            // Cache periodic boundary calculations
-            long long int global_pos = i + dataStart;
-            long long int slice_pos = global_pos % (ny * nz);
-            long long int slice_base = (global_pos / (ny * nz)) * ny * nz - dataStart;
-            
-            imy = (slice_pos - nz + ny * nz) % (ny * nz) + slice_base;
-            ipy = (slice_pos + nz) % (ny * nz) + slice_base;
-            imyy = (slice_pos - 2 * nz + ny * nz) % (ny * nz) + slice_base;
-            ipyy = (slice_pos + 2 * nz) % (ny * nz) + slice_base;
-            
-            long long int z_pos = global_pos % nz;
-            long long int z_base = (global_pos / nz) * nz - dataStart;
-            
-            imz = (z_pos - 1 + nz) % nz + z_base;
-            ipz = (z_pos + 1) % nz + z_base;
-            imzz = (z_pos - 2 + nz) % nz + z_base;
-            ipzz = (z_pos + 2) % nz + z_base;
+
+            // Need to account for the periodicity of the space for the other two directions:
+            // Convert to global position in array to do modulo arithmetic. The second to last term gives ny*nz*floor((i+dataStart)/(ny*nz)). The last term converts back to the position in the local array 
+            imy = (i + dataStart - nz + ny * nz) % (ny * nz) + ((i + dataStart) / (ny * nz)) * ny * nz - dataStart;
+            ipy = (i + dataStart + nz) % (ny * nz) + ((i + dataStart) / (ny * nz)) * ny * nz - dataStart;
+            imyy = (i + dataStart - 2 * nz + ny * nz) % (ny * nz) + ((i + dataStart) / (ny * nz)) * ny * nz - dataStart;
+            ipyy = (i + dataStart + 2 * nz) % (ny * nz) + ((i + dataStart) / (ny * nz)) * ny * nz - dataStart;
+
+            imz = (i + dataStart - 1 + nz) % nz + ((i + dataStart) / nz) * nz - dataStart;
+            ipz = (i + dataStart + 1) % nz + ((i + dataStart) / nz) * nz - dataStart;
+            imzz = (i + dataStart - 2 + nz) % nz + ((i + dataStart) / nz) * nz - dataStart;
+            ipzz = (i + dataStart + 2) % nz + ((i + dataStart) / nz) * nz - dataStart;
 
             // Additionally needed for wilson loop calculations. Avoid using x shifted points first as this makes the calculations more complicated and some of these points aren't in the correct positions
             ipxmy = imy + ny * nz;
@@ -1040,122 +979,216 @@ int main(int argc, char** argv) {
             ipymz = (ipy + dataStart - 1 + nz) % nz + ((ipy + dataStart) / nz) * nz - dataStart;
             imxpz = ipz - ny * nz;
             imypz = (imy + dataStart + 1) % nz + ((imy + dataStart) / nz) * nz - dataStart;
-            ipxpy = (ipy + ny * nz);
-            ipxpz = (ipz + ny * nz);
-            ipypz = (ipy + dataStart + 1) % nz + ((ipy + dataStart) / nz) * nz - dataStart;
-            ipxpypz = ipypz + ny * nz;
 
-            // More efficient field caching - access memory sequentially
-            long long int base_now = totSize * tNow;
-            long long int base_past = totSize * tPast;
-            
-            double f0 = fields[0][base_now + i];
-            double f1 = fields[1][base_now + i];
-            double f2 = fields[2][base_now + i];
-            double f3 = fields[3][base_now + i];
-            double f4 = fields[4][base_now + i];
-            double f5 = fields[5][base_now + i];
-            double f6 = fields[6][base_now + i];
-            double f7 = fields[7][base_now + i];
 
-            // Pre-calculate all field combinations once
-            double phi1_sq = f0*f0 + f1*f1 + f2*f2 + f3*f3;
-            double phi2_sq = f4*f4 + f5*f5 + f6*f6 + f7*f7;
-            double phi1_dot_phi2 = f0*f4 + f1*f5 + f2*f6 + f3*f7;
-            double phi1_cross_phi2 = f0*f5 - f1*f4 + f2*f7 - f3*f6;
+            //Used for monopole detection
 
-            // Pre-calculate potential terms once
-            double mu1_term = tau_scaling_bbeta * mu_1_sq;
-            double mu2_term = tau_scaling_bbeta * mu_2_sq;
-            double lambda1_term = tau_scaling_bbeta * 2 * lambda_1 * phi1_sq;
-            double lambda2_term = tau_scaling_bbeta * 2 * lambda_2 * phi2_sq;
-            double lambda3_term = tau_scaling_bbeta * lambda_3;
-            double l4m5_term = tau_scaling_bbeta * l4_m_l5;
-            double l4p5_term = tau_scaling_bbeta * l4_p_l5;
+            ipxpy = (ipy + ny * nz); // One unit in the positive x and y directions
+            ipxpz = (ipz + ny * nz); // One unit in the positive x and z directions
+            ipypz = (ipy + dataStart + 1) % nz + ((ipy + dataStart) / nz) * nz - dataStart; // One unit in the positive y and z directions
+            ipxpypz = ipypz + ny * nz; // One unit in the positive x, y, and z directions
 
-            // Calculate all spatial derivatives in one vectorized loop
-            double spatial_laplacians[nb_fields];
-            double temporal_derivs[nb_fields];
-            
-            for (comp = 0; comp < nb_fields; comp++) {
-                double fieldxx, fieldyy, fieldzz;
-                
-                // Optimized spatial derivatives with boundary handling
-                if (bc_type == "fixed" && isXBoundary[i]) {
-                    fieldxx = (fields[comp][base_now + ipx] - 2 * fields[comp][base_now + i] + fields[comp][base_now + imx]) / (dx * dx);
+
+
+
+            // Define in Shorthand the current value of each field at the evolving point:
+            double f0 = fields[0][totSize * tNow + i];
+            double f1 = fields[1][totSize * tNow + i];
+            double f2 = fields[2][totSize * tNow + i];
+            double f3 = fields[3][totSize * tNow + i];
+            double f4 = fields[4][totSize * tNow + i];
+            double f5 = fields[5][totSize * tNow + i];
+            double f6 = fields[6][totSize * tNow + i];
+            double f7 = fields[7][totSize * tNow + i];
+
+
+
+
+
+            // Calculate the second order time derivatives and update the fields:
+
+
+            //First Doublet:
+            for (comp = 0; comp <= 3; comp++) {
+
+                //2nd Spatial Deriviitive Calculations (central finite difference method) - to 4th Order:
+
+                if (bc_type == "fixed" and (i_coord == 1 or i_coord == nx-2)) {
+
+                    fieldxx = (fields[comp][totSize * tNow + ipx] - 2 * fields[comp][totSize * tNow + i] + fields[comp][totSize * tNow + imx]) / (dx * dx);
+
                 } else {
-                    fieldxx = (16 * (fields[comp][base_now + ipx] + fields[comp][base_now + imx]) - 
-                              30 * fields[comp][base_now + i] - 
-                              fields[comp][base_now + ipxx] - fields[comp][base_now + imxx]) / (12 * dx * dx);
+
+                    fieldxx = (16 * (fields[comp][totSize * tNow + ipx] + fields[comp][totSize * tNow + imx]) - 30 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + ipxx] - fields[comp][totSize * tNow + imxx]) / (12 * dx * dx);
+
                 }
-                
-                // Y second derivatives with boundary conditions
-                if (bc_type == "fixed" && isYBoundary[i]) {
-                    fieldyy = (fields[comp][base_now + ipy] - 2 * fields[comp][base_now + i] + fields[comp][base_now + imy]) / (dy * dy);
+
+                if (bc_type == "fixed" and (j_coord == 1 or j_coord == ny-2)) {
+
+                    fieldyy = (fields[comp][totSize * tNow + ipy] - 2 * fields[comp][totSize * tNow + i] + fields[comp][totSize * tNow + imy]) / (dy * dy);
+
                 } else {
-                    fieldyy = (16 * (fields[comp][base_now + ipy] + fields[comp][base_now + imy]) - 
-                              30 * fields[comp][base_now + i] - 
-                              fields[comp][base_now + ipyy] - fields[comp][base_now + imyy]) / (12 * dy * dy);
+
+                    fieldyy = (16 * (fields[comp][totSize * tNow + ipy] + fields[comp][totSize * tNow + imy]) - 30 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + ipyy] - fields[comp][totSize * tNow + imyy]) / (12 * dy * dy);
+
                 }
-                
-                // Z second derivatives with boundary conditions
-                if (bc_type == "fixed" && isZBoundary[i]) {
-                    fieldzz = (fields[comp][base_now + ipz] - 2 * fields[comp][base_now + i] + fields[comp][base_now + imz]) / (dz * dz);
+
+                if (bc_type == "fixed" and (k_coord == 1 or k_coord == nz-2)) {
+
+                    fieldzz = (fields[comp][totSize * tNow + ipz] - 2 * fields[comp][totSize * tNow + i] + fields[comp][totSize * tNow + imz]) / (dz * dz);
+
                 } else {
-                    fieldzz = (16 * (fields[comp][base_now + ipz] + fields[comp][base_now + imz]) - 
-                              30 * fields[comp][base_now + i] - 
-                              fields[comp][base_now + ipzz] - fields[comp][base_now + imzz]) / (12 * dz * dz);
+
+                    fieldzz = (16 * (fields[comp][totSize * tNow + ipz] + fields[comp][totSize * tNow + imz]) - 30 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + ipzz] - fields[comp][totSize * tNow + imzz]) / (12 * dz * dz);
+
                 }
-                
-                // Laplacian is the sum of second derivatives
-                spatial_laplacians[comp] = fieldxx + fieldyy + fieldzz;
-                temporal_derivs[comp] = (fields[comp][base_now + i] - fields[comp][base_past + i]) / dt;
+
+
+                //1st Temporal Derivitive Calculation (only required for damping):
+                fieldt[comp] = (fields[comp][totSize * tNow + i] - fields[comp][totSize * tPast + i]) / dt;
+
+
+                //2nd Temporal Derivitive Calculation - Using EoM:
+                fieldtt[comp] = fieldxx + fieldyy + fieldzz - fric * fieldt[comp] - pow(pow(tau, scaling), bbeta) * (-mu_1_sq * fields[comp][totSize * tNow + i] + 2 * lambda_1 * fields[comp][totSize * tNow + i] * (pow(f0, 2) + pow(f1, 2) + pow(f2, 2) + pow(f3, 2)) + lambda_3 * fields[comp][totSize * tNow + i] * (pow(f4, 2) + pow(f5, 2) + pow(f6, 2) + pow(f7, 2)));
+
+                //Different potential contributions dependant upon the component of the field vector:
+                if (comp == 0) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f4 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5)*f5 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                if (comp == 1) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f5 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5) * -f4 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                if (comp == 2) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f6 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5)*f7 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                if (comp == 3) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f7 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5) * -f6 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                // Updates value of the field (2nd Order centralfinite difference method):
+                fields[comp][totSize * tPast + i] = 2 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tPast + i] + dt * dt * fieldtt[comp];
+
             }
 
-            // Optimized evolution for all fields using lookup tables
-            double l4m5_coeffs[8] = {f4, f5, f6, f7, f0, f1, f2, f3};
-            double l4p5_coeffs[8] = {f5, -f4, f7, -f6, -f1, f0, -f3, f2};
-            double mu_terms[8] = {mu1_term, mu1_term, mu1_term, mu1_term, mu2_term, mu2_term, mu2_term, mu2_term};
-            double lambda_terms[8] = {lambda1_term, lambda1_term, lambda1_term, lambda1_term, lambda2_term, lambda2_term, lambda2_term, lambda2_term};
-            double lambda3_phi_sq[8] = {phi2_sq, phi2_sq, phi2_sq, phi2_sq, phi1_sq, phi1_sq, phi1_sq, phi1_sq};
+            //Second Doublet:
+            for (comp = 4; comp <= 7; comp++) {
 
-            // Vectorized field evolution
-            for (comp = 0; comp < nb_fields; comp++) {
-                double fieldtt_comp = spatial_laplacians[comp] - fric * temporal_derivs[comp] + 
-                                     mu_terms[comp] * fields[comp][base_now + i] -
-                                     lambda_terms[comp] * fields[comp][base_now + i] -
-                                     lambda3_term * fields[comp][base_now + i] * lambda3_phi_sq[comp] -
-                                     l4m5_term * l4m5_coeffs[comp] * phi1_dot_phi2 -
-                                     l4p5_term * l4p5_coeffs[comp] * phi1_cross_phi2;
+                //2nd Spatial Deriviitive Calculations (central finite difference method) - to 4th Order:
+                if (bc_type == "fixed" and (i_coord == 1 or i_coord == nx-2)) {
 
-                fields[comp][base_past + i] = 2 * fields[comp][base_now + i] - 
-                                             fields[comp][base_past + i] + 
-                                             dt * dt * fieldtt_comp;
+                    fieldxx = (fields[comp][totSize * tNow + ipx] - 2 * fields[comp][totSize * tNow + i] + fields[comp][totSize * tNow + imx]) / (dx * dx);
+
+                } else {
+
+                    fieldxx = (16 * (fields[comp][totSize * tNow + ipx] + fields[comp][totSize * tNow + imx]) - 30 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + ipxx] - fields[comp][totSize * tNow + imxx]) / (12 * dx * dx);
+
+                }
+
+                if (bc_type == "fixed" and (j_coord == 1 or j_coord == ny-2)) {
+
+                    fieldyy = (fields[comp][totSize * tNow + ipy] - 2 * fields[comp][totSize * tNow + i] + fields[comp][totSize * tNow + imy]) / (dy * dy);
+
+                } else {
+
+                    fieldyy = (16 * (fields[comp][totSize * tNow + ipy] + fields[comp][totSize * tNow + imy]) - 30 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + ipyy] - fields[comp][totSize * tNow + imyy]) / (12 * dy * dy);
+
+                }
+
+                if (bc_type == "fixed" and (k_coord == 1 or k_coord == nz-2)) {
+
+                    fieldzz = (fields[comp][totSize * tNow + ipz] - 2 * fields[comp][totSize * tNow + i] + fields[comp][totSize * tNow + imz]) / (dz * dz);
+
+                } else {
+
+                    fieldzz = (16 * (fields[comp][totSize * tNow + ipz] + fields[comp][totSize * tNow + imz]) - 30 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + ipzz] - fields[comp][totSize * tNow + imzz]) / (12 * dz * dz);
+
+                }
+
+                //1st Temporal Derivitive Calculation (only required for damping):
+                fieldt[comp] = (fields[comp][totSize * tNow + i] - fields[comp][totSize * tPast + i]) / dt;
+
+                //2nd Temporal Derivitive Calculation - Using EoM:
+                fieldtt[comp] = fieldxx + fieldyy + fieldzz - fric * fieldt[comp] - pow(pow(tau, scaling), bbeta) * (-mu_2_sq * fields[comp][totSize * tNow + i] + lambda_3 * fields[comp][totSize * tNow + i] * (pow(f0, 2) + pow(f1, 2) + pow(f2, 2) + pow(f3, 2)) + 2 * lambda_2 * fields[comp][totSize * tNow + i] * (pow(f4, 2) + pow(f5, 2) + pow(f6, 2) + pow(f7, 2)));
+
+                //Different potential contributions dependant upon the component of the field vector:
+                if (comp == 4) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f0 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5) * -f1 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                if (comp == 5) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f1 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5)*f0 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                if (comp == 6) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f2 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5) * -f3 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                if (comp == 7) {
+
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_m_l5)*f3 * (f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7));
+                    fieldtt[comp] += -pow(pow(tau, scaling), bbeta) * ((l4_p_l5)*f2 * (f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6));
+
+                }
+
+                // Updates value of the field (2nd Order centralfinite difference method):
+                fields[comp][totSize * tPast + i] = 2 * fields[comp][totSize * tNow + i] - fields[comp][totSize * tPast + i] + dt * dt * fieldtt[comp];
+
             }
 
-            // Optimized energy calculation
+
+
+
+
+
+            // Calculate the energy contained in this process's domain
             if (calcEnergy) {
-                // Calculate spatial derivatives for energy once
-                for (comp = 0; comp < nb_fields; comp++) {
-                    double fieldx_comp = (fields[comp][base_now + i] - fields[comp][base_now + imx]) / dx;
-                    double fieldy_comp = (fields[comp][base_now + i] - fields[comp][base_now + imy]) / dy;
-                    double fieldz_comp = (fields[comp][base_now + i] - fields[comp][base_now + imz]) / dz;
 
-                    totalLocalEnergy += (fieldx_comp*fieldx_comp + fieldy_comp*fieldy_comp + fieldz_comp*fieldz_comp) * dx * dy * dz;
+                for (comp = 0; comp < nb_fields; comp++) {
+                    fieldx[comp] = (fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + imx]) / dx;
+                    fieldy[comp] = (fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + imy]) / dy;
+                    fieldz[comp] = (fields[comp][totSize * tNow + i] - fields[comp][totSize * tNow + imz]) / dz;
+
+                    totalLocalEnergy += (pow(fieldx[comp], 2) + pow(fieldy[comp], 2) + pow(fieldz[comp], 2)) * dx * dy * dz;
                 }
 
-                // Potential energy terms using pre-computed values
-                totalLocalEnergy += (-mu_1_sq * phi1_sq - mu_2_sq * phi2_sq +
-                                    lambda_1 * phi1_sq * phi1_sq +
-                                    lambda_2 * phi2_sq * phi2_sq +
-                                    lambda_3 * phi1_sq * phi2_sq +
-                                    l4_m_l5 * phi1_dot_phi2 * phi1_dot_phi2 +
-                                    l4_p_l5 * phi1_cross_phi2 * phi1_cross_phi2) * dx * dy * dz;
+                //Potential Terms
+                totalLocalEnergy += -mu_1_sq * (pow(f0, 2) + pow(f1, 2) + pow(f2, 2) + pow(f3, 2)) - mu_2_sq * (pow(f4, 2) + pow(f5, 2) + pow(f6, 2) + pow(f7, 2));
+                totalLocalEnergy += lambda_1 * pow((pow(f0, 2) + pow(f1, 2) + pow(f2, 2) + pow(f3, 2)), 2);
+                totalLocalEnergy += lambda_2 * pow((pow(f4, 2) + pow(f5, 2) + pow(f6, 2) + pow(f7, 2)), 2);
+                totalLocalEnergy += lambda_3 * ((pow(f0, 2) + pow(f1, 2) + pow(f2, 2) + pow(f3, 2)) * (pow(f4, 2) + pow(f5, 2) + pow(f6, 2) + pow(f7, 2)));
+                totalLocalEnergy += (l4_m_l5)*pow((f0 * f4 + f1 * f5 + f2 * f6 + f3 * f7), 2);
+                totalLocalEnergy += (l4_p_l5)*pow((f0 * f5 - f1 * f4 + f2 * f7 - f3 * f6), 2);
+
             }
 
-            // Wall detection using pre-computed R1 value (optimized like monopole code)
+            // If the sign of phi flips between any two neighbours, consider that as a wall detection. Sum this up. Only look at forward neighbours so I'm not double counting.
             if (wallDetect) {
-                double R1_i = 2 * phi1_dot_phi2;
+
+                double R1_i = 2 * (fields[0][totSize * tNow + i] * fields[4][totSize * tNow + i] + fields[1][totSize * tNow + i] * fields[5][totSize * tNow + i] + fields[2][totSize * tNow + i] * fields[6][totSize * tNow + i] + fields[3][totSize * tNow + i] * fields[7][totSize * tNow + i]);
                 double R1_ipx = 2 * (fields[0][totSize * tNow + ipx] * fields[4][totSize * tNow + ipx] + fields[1][totSize * tNow + ipx] * fields[5][totSize * tNow + ipx] + fields[2][totSize * tNow + ipx] * fields[6][totSize * tNow + ipx] + fields[3][totSize * tNow + ipx] * fields[7][totSize * tNow + ipx]);
                 double R1_ipy = 2 * (fields[0][totSize * tNow + ipy] * fields[4][totSize * tNow + ipy] + fields[1][totSize * tNow + ipy] * fields[5][totSize * tNow + ipy] + fields[2][totSize * tNow + ipy] * fields[6][totSize * tNow + ipy] + fields[3][totSize * tNow + ipy] * fields[7][totSize * tNow + ipy]);
                 double R1_ipz = 2 * (fields[0][totSize * tNow + ipz] * fields[4][totSize * tNow + ipz] + fields[1][totSize * tNow + ipz] * fields[5][totSize * tNow + ipz] + fields[2][totSize * tNow + ipz] * fields[6][totSize * tNow + ipz] + fields[3][totSize * tNow + ipz] * fields[7][totSize * tNow + ipz]);
@@ -1163,6 +1196,7 @@ int main(int argc, char** argv) {
                 double R1_imx = 2 * (fields[0][totSize * tNow + imx] * fields[4][totSize * tNow + imx] + fields[1][totSize * tNow + imx] * fields[5][totSize * tNow + imx] + fields[2][totSize * tNow + imx] * fields[6][totSize * tNow + imx] + fields[3][totSize * tNow + imx] * fields[7][totSize * tNow + imx]);
                 double R1_imy = 2 * (fields[0][totSize * tNow + imy] * fields[4][totSize * tNow + imy] + fields[1][totSize * tNow + imy] * fields[5][totSize * tNow + imy] + fields[2][totSize * tNow + imy] * fields[6][totSize * tNow + imy] + fields[3][totSize * tNow + imy] * fields[7][totSize * tNow + imy]);
                 double R1_imz = 2 * (fields[0][totSize * tNow + imz] * fields[4][totSize * tNow + imz] + fields[1][totSize * tNow + imz] * fields[5][totSize * tNow + imz] + fields[2][totSize * tNow + imz] * fields[6][totSize * tNow + imz] + fields[3][totSize * tNow + imz] * fields[7][totSize * tNow + imz]);
+
 
 
                 // x neighbour
@@ -1200,6 +1234,7 @@ int main(int argc, char** argv) {
                     double R1z = (R1_i - R1_imz) / dz;
                     localADW_full += dx * dy * sqrt(pow(R1x, 2) + pow(R1y, 2) + pow(R1z, 2)) / (abs(R1x) + abs(R1y) + abs(R1z));
                 }
+
             }
 
             if (monopoleDetect) {
@@ -1252,9 +1287,13 @@ int main(int argc, char** argv) {
                     (R3_ipz * R3_ipxpz < 0) or (R3_ipz * R3_ipypz < 0) or 
                     (R3_ipxpy * R3_ipxpypz < 0) or (R3_ipxpz * R3_ipxpypz < 0) or 
                     (R3_ipypz * R3_ipxpypz < 0))) {
+
                         localNM += 1;
+                 
                 }
+
             }
+
         }
 
         // Puts required headers on valsPerLoop output file:
@@ -1512,8 +1551,10 @@ int main(int argc, char** argv) {
 
             if (rank == 0) {
                 // Create files for fields and R values
-                string rValuesPath = dir_path + "R_values_" + gamma_str + "_timestep=" + to_string(TimeStep) + outTag + ".txt";
+
+                string rValuesPath = dir_path + "t_gamma=2pi_3_R_values_timestep=" + to_string(TimeStep) + outTag + ".txt";
                 
+
                 ofstream rValuesFile(rValuesPath.c_str());
 
                 // Headers for fields and R values
@@ -1585,23 +1626,15 @@ int main(int argc, char** argv) {
     }
 
     if (rank == 0) {
-        gettimeofday(&evolution_end, NULL);
-        double evolution_time = (evolution_end.tv_sec - evolution_start.tv_sec) + (evolution_end.tv_usec - evolution_start.tv_usec)/1000000.0;
-        
+
         cout << "\rTimestep " << nt << " completed." << endl;
         cout << "STEP 21: Main evolution loop completed" << endl;
-        cout << "Field evolution time: " << evolution_time << "s" << endl;
-        cout << "Average time per timestep: " << evolution_time/nt << "s" << endl;
 
         gettimeofday(&end, NULL);
-        double total_time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec)/1000000.0;
 
-        cout << "=== TIMING SUMMARY ===" << endl;
-        cout << "Setup time: " << (setup_end.tv_sec - setup_start.tv_sec) + (setup_end.tv_usec - setup_start.tv_usec)/1000000.0 << "s" << endl;
-        cout << "Initial conditions time: " << (ic_end.tv_sec - ic_start.tv_sec) + (ic_end.tv_usec - ic_start.tv_usec)/1000000.0 << "s" << endl;
-        cout << "Evolution time: " << evolution_time << "s (" << (evolution_time/total_time)*100 << "% of total)" << endl;
-        cout << "Total simulation time: " << total_time << "s" << endl;
-        cout << "STEP 22: Timing analysis completed" << endl;
+        cout << "Time taken: " << end.tv_sec - start.tv_sec << "s" << endl;
+        cout << "STEP 22: Timing completed" << endl;
+
     }
 
     // Deletes redundent outpur files if not used:
