@@ -56,3 +56,4 @@ Questions:
 - Check source of M and lambda relations
 - To equate Λ1 & λ2 we get tan^2beta=1 so tanbeta = +-1
 -defines 2 mixing angles a and b? is that because beta is pi/4 and alpha must b pi/4? but in the lambda equations theyre used interchangably (ASK ADAM?)
+- OPPOSITE WINDING? U2 MATRIX? DOESNT FULLY POINT OUT?
