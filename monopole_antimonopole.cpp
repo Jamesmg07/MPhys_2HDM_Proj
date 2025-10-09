@@ -35,7 +35,7 @@ const int nt = (nx * dx / (2 * dt));
 
 const int seed = 73;
 
-const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + to_string(seed) + "_Z2";
+const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + to_string(seed) + "_monopole";
 
 // Monopole/Antimonopole Configuration Parameters
 const double gamma_param = (0 * pi); // Phase difference parameter
