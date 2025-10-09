@@ -88,3 +88,11 @@ Make sure the mass parameters match the profile function set by the SOR file
 J NOTES:
 
 IMRPVOEMENT IN BC EFFICIENCY (30-40%) ESTIMATED SPEEDUP, REDUCTION FROM 196MIL  TO262K CALCS IN BOUNDARY CONDITION CHECK
+
+
+09/10/2025 Adam Centaurus orientation
+change the output directory to the directory Adam sends so that supercomputer doesn't freeze
+check adams github, hes put 2 submission scripts, slurm and PBS
+sinfo --Node --long // this command shows you what nodes are available, so we can know how many to use
+sinfo shows you a list of all the nodes
+2d heatmap of mass vs twist with colour for energy or energy derivative, adam thinks this could make a good result for a paper 
