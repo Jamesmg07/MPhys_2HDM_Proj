@@ -216,9 +216,10 @@ def create_gif_animation(r_values_files, n_frames=20):
     indices = np.linspace(0, len(r_values_files)-1, n_frames, dtype=int)
     selected_files = [r_values_files[i] for i in indices]
     
-    # Load all data first
+    # Load all data first and find global vmax for consistent scaling
     all_data = []
     timesteps = []
+    global_vmax = 0
     
     print("  Loading data for all frames...")
     for i, file in enumerate(selected_files):
@@ -231,6 +232,14 @@ def create_gif_animation(r_values_files, n_frames=20):
         if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
             all_data.append(r_fields)
             timesteps.append(timestep)
+            
+            # Calculate max value for consistent colormap scaling
+            slice_index = int(MONOPOLE_CENTER_Y)
+            field1_slice = r_fields['R1nt'][:, slice_index, :]
+            field2_slice = r_fields['R2nt'][:, slice_index, :]
+            field3_slice = r_fields['R3nt'][:, slice_index, :]
+            monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
+            global_vmax = max(global_vmax, np.max(monopole_field))
         else:
             print(f"    Skipped: Invalid data for timestep {timestep}")
     
@@ -239,10 +248,11 @@ def create_gif_animation(r_values_files, n_frames=20):
         return
     
     print(f"  Successfully loaded {len(all_data)} frames")
+    print(f"  Global vmax for colormap: {global_vmax:.3f}")
     print("  Creating animation...")
     
     # Set up the figure and axes
-    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
     
     # Create coordinate grids
     slice_index = int(MONOPOLE_CENTER_Y)
@@ -250,7 +260,11 @@ def create_gif_animation(r_values_files, n_frames=20):
     z_coords = np.arange(nz) * dz
     X, Z = np.meshgrid(x_coords, z_coords)
     
+    # Initialize colorbar placeholder
+    cbar = None
+    
     def animate(frame):
+        nonlocal cbar
         # Clear previous plot
         ax.clear()
         
@@ -265,17 +279,23 @@ def create_gif_animation(r_values_files, n_frames=20):
         # Calculate R1² + R2² + R3² for monopole identification
         monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
         
-        # Plot monopole field colormap
-        # Transpose to make z vertical
-        im = ax.contourf(X, Z, monopole_field.T, levels=20, cmap='plasma', vmin=0, vmax=2.0)  # Fixed vmax for consistency
+        # Plot monopole field colormap with consistent scaling
+        im = ax.contourf(X, Z, monopole_field.T, levels=20, cmap='plasma', 
+                        vmin=0, vmax=global_vmax, extend='max')
         
-        # Plot arrows (subsample for clarity) - reduced size by 0.75
-        step = 4  # Slightly larger step for GIF performance
+        # Remove old colorbar and create new one
+        if cbar is not None:
+            cbar.remove()
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label('R1² + R2² + R3² (monopole field strength)')
+        
+        # Plot arrows (subsample for clarity)
+        step = 4
         for i in range(0, X.shape[0], step):
             for j in range(0, X.shape[1], step):
                 ax.quiver(X[i, j], Z[i, j], 
                          field1_slice.T[i, j], field3_slice.T[i, j], 
-                         scale=4, width=0.004, alpha=0.8, color='white')  # Reduced size
+                         scale=4, width=0.004, alpha=0.8, color='white')
         
         ax.set_xlabel('x position')
         ax.set_ylabel('z position')
@@ -291,11 +311,10 @@ def create_gif_animation(r_values_files, n_frames=20):
         ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
         ax.legend()
         
-        plt.tight_layout()
-        return []
+        return [im]
     
     # Create animation
-    anim = animation.FuncAnimation(fig, animate, frames=len(all_data), interval=200, blit=False, repeat=True)
+    anim = animation.FuncAnimation(fig, animate, frames=len(all_data), interval=300, blit=False, repeat=True)
     
     # Save as GIF
     gif_path = OUTPUT_DIR / 'monopole_field_evolution_xz_slice.gif'
