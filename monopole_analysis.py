@@ -207,33 +207,29 @@ def plot_xz_slice_vectors(r_fields, timestep, save_individual=True):
 def create_gif_animation(r_values_files, n_frames=20):
     """Create GIF animation of the x-z slice evolution with monopole field"""
     print(f"\nCreating GIF animation with {n_frames} frames...")
-    
+
     if len(r_values_files) < n_frames:
         print(f"Not enough timestep files for {n_frames} frames, using {len(r_values_files)} frames")
         n_frames = len(r_values_files)
-    
-    # Select files at regular intervals
+
     indices = np.linspace(0, len(r_values_files)-1, n_frames, dtype=int)
     selected_files = [r_values_files[i] for i in indices]
-    
-    # Load all data first and find global vmax for consistent scaling
+
     all_data = []
     timesteps = []
     global_vmax = 0
-    
+
     print("  Loading data for all frames...")
     for i, file in enumerate(selected_files):
         if i % max(1, n_frames // 5) == 0:
             print(f"    Loading frame {i+1}/{n_frames}")
-        
+
         timestep = extract_timestep(file)
         r_fields = load_r_field_data(file)
-        
+
         if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
             all_data.append(r_fields)
             timesteps.append(timestep)
-            
-            # Calculate max value for consistent colormap scaling
             slice_index = int(MONOPOLE_CENTER_Y)
             field1_slice = r_fields['R1nt'][:, slice_index, :]
             field2_slice = r_fields['R2nt'][:, slice_index, :]
@@ -242,91 +238,87 @@ def create_gif_animation(r_values_files, n_frames=20):
             global_vmax = max(global_vmax, np.max(monopole_field))
         else:
             print(f"    Skipped: Invalid data for timestep {timestep}")
-    
+
     if len(all_data) == 0:
         print("  Error: No valid data found for GIF creation")
         return
-    
+
     print(f"  Successfully loaded {len(all_data)} frames")
     print(f"  Global vmax for colormap: {global_vmax:.3f}")
     print("  Creating animation...")
-    
-    # Set up the figure and axes
+
     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-    
-    # Create coordinate grids
     slice_index = int(MONOPOLE_CENTER_Y)
     x_coords = np.arange(nx) * dx
     z_coords = np.arange(nz) * dz
-    X, Z = np.meshgrid(x_coords, z_coords)
-    
-    # Initialize colorbar placeholder
-    cbar = None
-    
+
+    # Prepare first frame
+    r_fields = all_data[0]
+    field1_slice = r_fields['R1nt'][:, slice_index, :]
+    field2_slice = r_fields['R2nt'][:, slice_index, :]
+    field3_slice = r_fields['R3nt'][:, slice_index, :]
+    monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
+
+    # Use imshow for stable animation
+    im = ax.imshow(
+        monopole_field.T,
+        origin='lower',
+        extent=[x_coords[0], x_coords[-1], z_coords[0], z_coords[-1]],
+        aspect='auto',
+        cmap='plasma',
+        vmin=0,
+        vmax=global_vmax,
+        interpolation='nearest'
+    )
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label('R1² + R2² + R3² (monopole field strength)')
+
+    step = 4
+    quiv = ax.quiver(
+        x_coords[::step], z_coords[::step],
+        field1_slice.T[::step, ::step], field3_slice.T[::step, ::step],
+        scale=4, width=0.004, alpha=0.8, color='white'
+    )
+
+    x1_phys = MONOPOLE_1_POS[0] * dx
+    z1_phys = MONOPOLE_1_POS[2] * dz
+    x2_phys = MONOPOLE_2_POS[0] * dx
+    z2_phys = MONOPOLE_2_POS[2] * dz
+    scatter1 = ax.scatter([x1_phys], [z1_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Monopole')
+    scatter2 = ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
+
+    ax.set_xlabel('x position')
+    ax.set_ylabel('z position')
+    ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timesteps[0]}')
+    ax.legend()
+    ax.set_xlim(x_coords[0], x_coords[-1])
+    ax.set_ylim(z_coords[0], z_coords[-1])
+
     def animate(frame):
-        nonlocal cbar
-        # Clear previous plot
-        ax.clear()
-        
         r_fields = all_data[frame]
         timestep = timesteps[frame]
-        
-        # Extract slices
-        field1_slice = r_fields['R1nt'][:, slice_index, :]  # R1
-        field2_slice = r_fields['R2nt'][:, slice_index, :]  # R2
-        field3_slice = r_fields['R3nt'][:, slice_index, :]  # R3
-        
-        # Calculate R1² + R2² + R3² for monopole identification
+        field1_slice = r_fields['R1nt'][:, slice_index, :]
+        field2_slice = r_fields['R2nt'][:, slice_index, :]
+        field3_slice = r_fields['R3nt'][:, slice_index, :]
         monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
-        
-        # Plot monopole field colormap with consistent scaling
-        im = ax.contourf(X, Z, monopole_field.T, levels=20, cmap='plasma', 
-                        vmin=0, vmax=global_vmax, extend='max')
-        
-        # Remove old colorbar and create new one
-        if cbar is not None:
-            cbar.remove()
-        cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label('R1² + R2² + R3² (monopole field strength)')
-        
-        # Plot arrows (subsample for clarity)
-        step = 4
-        for i in range(0, X.shape[0], step):
-            for j in range(0, X.shape[1], step):
-                ax.quiver(X[i, j], Z[i, j], 
-                         field1_slice.T[i, j], field3_slice.T[i, j], 
-                         scale=4, width=0.004, alpha=0.8, color='white')
-        
-        ax.set_xlabel('x position')
-        ax.set_ylabel('z position')
+
+        im.set_data(monopole_field.T)
+        quiv.set_UVC(field1_slice.T[::step, ::step], field3_slice.T[::step, ::step])
         ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}')
-        
-        # Mark original monopole positions with cyan crosses
-        x1_phys = MONOPOLE_1_POS[0] * dx
-        z1_phys = MONOPOLE_1_POS[2] * dz
-        x2_phys = MONOPOLE_2_POS[0] * dx
-        z2_phys = MONOPOLE_2_POS[2] * dz
-        
-        ax.scatter([x1_phys], [z1_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Monopole')
-        ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
-        ax.legend()
-        
-        return [im]
-    
-    # Create animation
+        return []
+
     anim = animation.FuncAnimation(fig, animate, frames=len(all_data), interval=300, blit=False, repeat=True)
-    
-    # Save as GIF
+
     gif_path = OUTPUT_DIR / 'monopole_field_evolution_xz_slice.gif'
     print(f"  Saving GIF to: {gif_path}")
-    
+
     try:
         anim.save(gif_path, writer='pillow', fps=5, dpi=150)
         print(f"  ✓ Successfully saved GIF: monopole_field_evolution_xz_slice.gif")
     except Exception as e:
         print(f"  Error saving GIF: {e}")
         print("  Note: Make sure Pillow is installed: pip install Pillow")
-    
+
     plt.close(fig)
 
 def analyze_at_intervals(r_values_files, n_intervals=12):
