@@ -37,47 +37,13 @@ const int seed = 73;
 
 const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + to_string(seed) + "_Z2";
 
-// Create gamma-dependent file tag
-string gamma_str;
-if (gamma == 0) {
-    gamma_str = "gamma=0";
-} else if (abs(gamma - pi/3) < 1e-10) {
-    gamma_str = "gamma=pi_3";
-} else if (abs(gamma - 2*pi/3) < 1e-10) {
-    gamma_str = "gamma=2pi_3";
-} else if (abs(gamma - pi) < 1e-10) {
-    gamma_str = "gamma=pi";
-} else {
-    // For arbitrary gamma values, format as decimal
-    gamma_str = "gamma=" + to_string(gamma/pi).substr(0,5) + "pi";
-}
-
-const bool calcEnergy = true; // Output Choices
-const bool wallDetect = false;
-const bool finalOut = true;
-
-const bool monopoleDetect = false;
-
-const bool makeGif = true;
-const int saveFreq = 2;
-
-const string file_path = __FILE__;
-const string dir_path = "./Data/"; // Data Directory Location - fixed path
-
-const int countRate = 20; // Increments for simulation progress status output.
-
-const string ic_type = "monopole";
-const string bc_type = "fixed";
-
-const int nb_fields = 8; // Number of fields in simulation
-
 // Monopole/Antimonopole Configuration Parameters
-const double gamma = (0 * pi); // Phase difference parameter
+const double gamma_param = (0 * pi); // Phase difference parameter
 
 // Monopole Position Parameters (in grid coordinates)
 const double monopole1_x_offset = 0.0;     // Offset from center in x
 const double monopole1_y_offset = 0.0;     // Offset from center in y  
-const double monopole1_z_offset = 23.0;    // Offset from center in z (z1 = center + 23)
+const double monopole1_z_offset = 25.0;    // Offset from center in z (z1 = center + 23)
 
 const double monopole2_x_offset = 0.0;     // Offset from center in x
 const double monopole2_y_offset = 0.0;     // Offset from center in y
@@ -152,6 +118,36 @@ const double scaling = 0; // Power law scaling of the scale factor wrt tau. Usin
 
 // Begginning of Simulation:
 int main(int argc, char** argv) {
+    // Simulation parameters needed in main
+    const string ic_type = "monopole";
+    const string bc_type = "fixed";
+    const int nb_fields = 8; // Number of fields in simulation
+    const bool calcEnergy = true; // Output Choices
+    const bool wallDetect = false;
+    const bool finalOut = true;
+    const bool monopoleDetect = false;
+    const bool makeGif = true;
+    const int saveFreq = 2;
+    const string dir_path = "./Data/"; // Data Directory Location - fixed path
+    const int countRate = 20; // Increments for simulation progress status output.
+
+    // Monopole/Antimonopole Configuration Parameters
+    const double gamma_param = (0 * pi); // Phase difference parameter
+
+    // Create gamma-dependent file tag
+    string gamma_str;
+    if (gamma_param == 0) {
+        gamma_str = "gamma=0";
+    } else if (abs(gamma_param - pi/3) < 1e-10) {
+        gamma_str = "gamma=pi_3";
+    } else if (abs(gamma_param - 2*pi/3) < 1e-10) {
+        gamma_str = "gamma=2pi_3";
+    } else if (abs(gamma_param - pi) < 1e-10) {
+        gamma_str = "gamma=pi";
+    } else {
+        // For arbitrary gamma values, format as decimal
+        gamma_str = "gamma=" + to_string(gamma_param/pi).substr(0,5) + "pi";
+    }
 
     // Initialize MPI
 
@@ -653,8 +649,8 @@ int main(int argc, char** argv) {
 
             // Define the T matrix
             complex<double> T[2][2] = {
-                {exp(complex<double>(0, 0.5 * gamma)), complex<double>(0.0, 0.0)},
-                {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma))}
+                {exp(complex<double>(0, 0.5 * gamma_param)), complex<double>(0.0, 0.0)},
+                {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param))}
             };
 
             // Step 1: Compute C = T * u_2
@@ -887,8 +883,7 @@ int main(int argc, char** argv) {
                 // Compute R values
                 R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
                 R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
-                R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2)
-                    - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
+                R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
                 R0nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) + pow(fieldsOutnt[4][j], 2) + pow(fieldsOutnt[5][j], 2) + pow(fieldsOutnt[6][j], 2) + pow(fieldsOutnt[7][j], 2);
                 
 
@@ -1545,8 +1540,7 @@ int main(int argc, char** argv) {
                     // Compute R values
                     R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
                     R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
-                    R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2)
-                        - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
+                    R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
 
                     // Write R values to R values file, ensuring explicit output of 0.0
                     rValuesFile << (R1nt == 0.0 ? "0.0" : to_string(R1nt)) << " "
