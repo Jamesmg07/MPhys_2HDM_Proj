@@ -20,15 +20,15 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 64; // Grid Dimensions
-const long long int ny = 64;
-const long long int nz = 64; // Set nz = 1 for 2D.
+const long long int nx = 128; // Grid Dimensions
+const long long int ny = 128;
+const long long int nz = 128; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
 const double dy = 0.5;
 const double dz = 0.5;
-const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
+const double dt = 0.05; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = (nx * dx / (2 * dt));
@@ -38,16 +38,18 @@ const int seed = 73;
 const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + to_string(seed) + "_monopole";
 
 // Monopole/Antimonopole Configuration Parameters
-const double gamma_param = (0 * pi); // Phase difference parameter
+const double gamma_param = (1 * pi); // Phase difference parameter
+const double offset_from_centre = 0.25 // Offset of monopole/antimonopole from centre as a fraction of box size
+// * nz;  in z direction 
 
 // Monopole Position Parameters (in grid coordinates)
 const double monopole1_x_offset = 0.0;     // Offset from center in x
 const double monopole1_y_offset = 0.0;     // Offset from center in y  
-const double monopole1_z_offset = 25.0;    // Offset from center in z (z1 = center + 23)
+const double monopole1_z_offset = offset_from_centre * nz;    // Offset from center in z (z1 = center + 23)
 
 const double monopole2_x_offset = 0.0;     // Offset from center in x
 const double monopole2_y_offset = 0.0;     // Offset from center in y
-const double monopole2_z_offset = -25.0;   // Offset from center in z (z2 = center - 25)
+const double monopole2_z_offset = -1 * (offset_from_centre * nz);   // Offset from center in z (z2 = center - 25)
 
 // Monopole Field Profile Parameters
 const double monopole_grid_spacing = 0.01; // Radial grid spacing for SOR_Fields.txt interpolation
@@ -130,9 +132,6 @@ int main(int argc, char** argv) {
     const int saveFreq = 2;
     const string dir_path = "./Data/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
-
-    // Monopole/Antimonopole Configuration Parameters
-    const double gamma_param = (0 * pi); // Phase difference parameter
 
     // Create gamma-dependent file tag
     string gamma_str;

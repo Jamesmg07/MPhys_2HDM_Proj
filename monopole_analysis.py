@@ -170,30 +170,27 @@ def plot_xz_slice_vectors(r_fields, timestep, save_individual=True):
     X, Z = np.meshgrid(x_coords, z_coords)
     
     # Plot monopole field colormap
-    # Transpose to make z vertical
     im = ax.contourf(X, Z, monopole_field.T, levels=20, cmap='plasma', vmin=0, vmax=np.max(monopole_field))
     
-    # Plot arrows (subsample for clarity) - reduced size by 0.75
+    # Plot normalized arrows (subsample for clarity)
     step = 3
+    # Compute normalization factor for each arrow
+    norm = np.sqrt(field1_slice**2 + field2_slice**2 + field3_slice**2)
+    # Avoid division by zero
+    norm[norm == 0] = 1
+    field1_norm = field1_slice / norm
+    field3_norm = field3_slice / norm
     for i in range(0, X.shape[0], step):
         for j in range(0, X.shape[1], step):
             ax.quiver(X[i, j], Z[i, j], 
-                     field1_slice.T[i, j], field3_slice.T[i, j], 
-                     scale=4, width=0.004, alpha=0.9, color='white')  # Increased scale, reduced width
+                     field1_norm.T[i, j], field3_norm.T[i, j], 
+                     scale=8*3, width=0.004, alpha=0.9, color='white')  # Further divided by 3
     
     ax.set_xlabel('x position')
     ax.set_ylabel('z position')
     ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}')
     
-    # Mark original monopole positions with green crosses
-    x1_phys = MONOPOLE_1_POS[0] * dx
-    z1_phys = MONOPOLE_1_POS[2] * dz
-    x2_phys = MONOPOLE_2_POS[0] * dx
-    z2_phys = MONOPOLE_2_POS[2] * dz
-    
-    ax.scatter([x1_phys], [z1_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Monopole')
-    ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
-    ax.legend()
+    # Removed hardcoded markers for original monopole and antimonopole
     
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label('R1² + R2² + R3² (monopole field strength)')
@@ -206,14 +203,10 @@ def plot_xz_slice_vectors(r_fields, timestep, save_individual=True):
 
 def create_gif_animation(r_values_files, n_frames=20):
     """Create GIF animation of the x-z slice evolution with monopole field"""
-    print(f"\nCreating GIF animation with {n_frames} frames...")
+    print(f"\nCreating GIF animation with all available timesteps...")
 
-    if len(r_values_files) < n_frames:
-        print(f"Not enough timestep files for {n_frames} frames, using {len(r_values_files)} frames")
-        n_frames = len(r_values_files)
-
-    indices = np.linspace(0, len(r_values_files)-1, n_frames, dtype=int)
-    selected_files = [r_values_files[i] for i in indices]
+    # Use all files, sorted by timestep
+    selected_files = r_values_files
 
     all_data = []
     timesteps = []
@@ -221,8 +214,8 @@ def create_gif_animation(r_values_files, n_frames=20):
 
     print("  Loading data for all frames...")
     for i, file in enumerate(selected_files):
-        if i % max(1, n_frames // 5) == 0:
-            print(f"    Loading frame {i+1}/{n_frames}")
+        if i % max(1, len(selected_files) // 5) == 0:
+            print(f"    Loading frame {i+1}/{len(selected_files)}")
 
         timestep = extract_timestep(file)
         r_fields = load_r_field_data(file)
@@ -259,7 +252,12 @@ def create_gif_animation(r_values_files, n_frames=20):
     field3_slice = r_fields['R3nt'][:, slice_index, :]
     monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
 
-    # Use imshow for stable animation
+    # Normalize vectors for quiver
+    norm = np.sqrt(field1_slice**2 + field2_slice**2 + field3_slice**2)
+    norm[norm == 0] = 1
+    field1_norm = field1_slice / norm
+    field3_norm = field3_slice / norm
+
     im = ax.imshow(
         monopole_field.T,
         origin='lower',
@@ -276,16 +274,11 @@ def create_gif_animation(r_values_files, n_frames=20):
     step = 4
     quiv = ax.quiver(
         x_coords[::step], z_coords[::step],
-        field1_slice.T[::step, ::step], field3_slice.T[::step, ::step],
-        scale=4, width=0.004, alpha=0.8, color='white'
+        field1_norm.T[::step, ::step], field3_norm.T[::step, ::step],
+        scale=8*4.5, width=0.004, alpha=0.8, color='white'  # Further divided by 4.5
     )
 
-    x1_phys = MONOPOLE_1_POS[0] * dx
-    z1_phys = MONOPOLE_1_POS[2] * dz
-    x2_phys = MONOPOLE_2_POS[0] * dx
-    z2_phys = MONOPOLE_2_POS[2] * dz
-    scatter1 = ax.scatter([x1_phys], [z1_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Monopole')
-    scatter2 = ax.scatter([x2_phys], [z2_phys], color='cyan', s=200, marker='+', linewidth=4, label='Original Antimonopole')
+    # Removed hardcoded markers for original monopole and antimonopole
 
     ax.set_xlabel('x position')
     ax.set_ylabel('z position')
@@ -302,8 +295,14 @@ def create_gif_animation(r_values_files, n_frames=20):
         field3_slice = r_fields['R3nt'][:, slice_index, :]
         monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
 
+        # Normalize vectors for quiver
+        norm = np.sqrt(field1_slice**2 + field2_slice**2 + field3_slice**2)
+        norm[norm == 0] = 1
+        field1_norm = field1_slice / norm
+        field3_norm = field3_slice / norm
+
         im.set_data(monopole_field.T)
-        quiv.set_UVC(field1_slice.T[::step, ::step], field3_slice.T[::step, ::step])
+        quiv.set_UVC(field1_norm.T[::step, ::step], field3_norm.T[::step, ::step])
         ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}')
         return []
 
