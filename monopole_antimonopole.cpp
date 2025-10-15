@@ -39,7 +39,7 @@ const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + 
 
 // Monopole/Antimonopole Configuration Parameters
 const double gamma_param = (1 * pi); // Phase difference parameter
-const double offset_from_centre = 0.25 // Offset of monopole/antimonopole from centre as a fraction of box size
+const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from centre as a fraction of box size
 // * nz;  in z direction 
 
 // Monopole Position Parameters (in grid coordinates)
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     const bool monopoleDetect = false;
     const bool makeGif = true;
     const int saveFreq = 2;
-    const string inp_path = "./Data/"; // Input Directory Location - relative path
+    const string inp_path = "./"; // Input Directory Location - relative path
     const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
 
