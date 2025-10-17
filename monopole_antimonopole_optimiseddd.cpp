@@ -1630,11 +1630,10 @@ int main(int argc, char** argv) {
                         j1 = (min1_idx / nz) % ny;
                         i1 = min1_idx / (ny * nz);
                         
-                        // Find maximum value within 5 grid points of first minimum
+                        // Find maximum value within 2 grid points of first minimum
                         max_near_min1 = 0.0;
                         
-                        
-                        
+                                                
                         for (j = 0; j < nPos; j++) {
                             k_j = j % nz;
                             j_j = (j / nz) % ny;
@@ -1645,7 +1644,7 @@ int main(int argc, char** argv) {
                             dz_diff = k_j - k1;
                             distance_squared = dx_diff*dx_diff + dy_diff*dy_diff + dz_diff*dz_diff;
                             
-                            if (distance_squared <= 25.0) {
+                            if (distance_squared <= 4.0) {
                                 max_near_min1 = max(max_near_min1, monopole_field[j]);
                             }
                         }
