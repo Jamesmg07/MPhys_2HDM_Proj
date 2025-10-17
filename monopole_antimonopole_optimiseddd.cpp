@@ -20,9 +20,9 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 128; // Grid Dimensions
-const long long int ny = 128;
-const long long int nz = 128; // Set nz = 1 for 2D.
+const long long int nx = 64; // Grid Dimensions
+const long long int ny = 64;
+const long long int nz = 64; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings

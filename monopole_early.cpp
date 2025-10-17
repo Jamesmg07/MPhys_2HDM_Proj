@@ -47,7 +47,7 @@ const bool makeGif = true;
 const int saveFreq = 2;
 
 const string file_path = __FILE__;
-const string dir_path = "./Data/"; // Data Directory Location - fixed path
+
 
 const int countRate = 20; // Increments for simulation progress status output.
 
@@ -133,6 +133,9 @@ int main(int argc, char** argv) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    const string inp_path = "./"; // Input Directory Location - relative path
+    const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
 
     if (rank == 0) {
         cout << "STEP 1: MPI initialization completed" << endl;
@@ -246,16 +249,16 @@ int main(int argc, char** argv) {
     }
 
     //Creates Output Files if required
-    string icPath = dir_path + "ic.txt";
+    string icPath = out_path + "ic.txt";
     ifstream ic(icPath.c_str());
 
-    string finalFieldPath = dir_path + "vortices_ gif_finalFields" + outTag + ".txt";
+    string finalFieldPath = out_path + "vortices_gif_finalFields" + outTag + ".txt";
     ofstream finalFields(finalFieldPath.c_str());
 
-    string valsPerLoopPath = dir_path + "t_gamma=2pi_3_energy" + outTag + ".txt";
+    string valsPerLoopPath = out_path + "t_gamma=2pi_3_energy" + outTag + ".txt";
     ofstream valsPerLoop(valsPerLoopPath.c_str());
 
-    string monopoleNumberPath = dir_path + "2m_monopoleNumber" + outTag + ".txt";
+    string monopoleNumberPath = out_path + "2m_monopoleNumber" + outTag + ".txt";
     ofstream monopoleNumber(monopoleNumberPath.c_str());
 
     if (rank == 0) {
@@ -385,7 +388,7 @@ int main(int argc, char** argv) {
             cout << "STEP 9a: Starting monopole initial conditions" << endl;
         }
 
-        string fields_ic_data = dir_path + "SOR_Fields.txt";
+        string fields_ic_data = inp_path + "SOR_Fields.txt";
         
         // Check if file exists
         ifstream test_file(fields_ic_data);
@@ -754,8 +757,8 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             
-            string test_kValuesPath = dir_path + "test_m_am_kValues" + outTag + ".txt";
-            string test_gValuesPath = dir_path + "test_m_am_gValues" + outTag + ".txt";
+            string test_kValuesPath = out_path + "test_m_am_kValues" + outTag + ".txt";
+            string test_gValuesPath = out_path + "test_m_am_gValues" + outTag + ".txt";
             
             ofstream test_kValuesFile(test_kValuesPath.c_str());
             ofstream test_gValuesFile(test_gValuesPath.c_str());
@@ -812,9 +815,9 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             // Create files for fields and R values
-            string test_fieldsPath = dir_path + "test_m_am_fieldValues" + outTag + ".txt";
-            string test_rValuesPath = dir_path + "test_m_am_RValues" + outTag + ".txt";
-            
+            string test_fieldsPath = out_path + "test_m_am_fieldValues" + outTag + ".txt";
+            string test_rValuesPath = out_path + "test_m_am_RValues" + outTag + ".txt";
+
             ofstream test_fieldsFile(test_fieldsPath.c_str());
             ofstream test_rValuesFile(test_rValuesPath.c_str());
 
@@ -1495,7 +1498,7 @@ int main(int argc, char** argv) {
 
             if (rank == 0) {
                 // Create files
-                string TimeStepPath = dir_path + "fields_timestep=" + to_string(TimeStep) + outTag + ".txt";
+                string TimeStepPath = out_path + "fields_timestep=" + to_string(TimeStep) + outTag + ".txt";
                 ofstream Gif(TimeStepPath.c_str());
                 Gif << "R1" << " " << "R2" << " " << "R3" << endl;
 
@@ -1552,7 +1555,7 @@ int main(int argc, char** argv) {
             if (rank == 0) {
                 // Create files for fields and R values
 
-                string rValuesPath = dir_path + "t_gamma=2pi_3_R_values_timestep=" + to_string(TimeStep) + outTag + ".txt";
+                string rValuesPath = out_path + "t_gamma=2pi_3_R_values_timestep=" + to_string(TimeStep) + outTag + ".txt";
                 
 
                 ofstream rValuesFile(rValuesPath.c_str());
