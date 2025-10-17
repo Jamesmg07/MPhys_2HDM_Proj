@@ -278,17 +278,21 @@ int main(int argc, char** argv) {
     }
 
     //Creates Output Files if required
-    string icPath = out_path + "ic.txt";
+    string icPath = out_path + "ic.csv";
     ifstream ic(icPath.c_str());
 
-    string finalFieldPath = out_path + "vortices_ gif_finalFields" + gamma_str + outTag + ".txt";
+    string finalFieldPath = out_path + "vortices_gif_finalFields" + gamma_str + outTag + ".csv";
     ofstream finalFields(finalFieldPath.c_str());
+    finalFields << fixed << setprecision(6); // Add this line
 
-    string valsPerLoopPath = out_path + "energy_" + gamma_str + outTag + ".txt";
+
+    string valsPerLoopPath = out_path + "energy_" + gamma_str + outTag + ".csv";
     ofstream valsPerLoop(valsPerLoopPath.c_str());
+    valsPerLoop << fixed << setprecision(6); // Add this line
 
-    string monopoleNumberPath = out_path + "2m_monopoleNumber" + gamma_str + outTag + ".txt";
+    string monopoleNumberPath = out_path + "2m_monopoleNumber" + gamma_str + outTag + ".csv";
     ofstream monopoleNumber(monopoleNumberPath.c_str());
+    monopoleNumber << fixed << setprecision(6); // Add this line
 
     if (rank == 0) {
         cout << "STEP 7: Output files created" << endl;
@@ -789,14 +793,17 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             
-            string test_kValuesPath = out_path + "test_m_am_kValues" + gamma_str + outTag + ".txt";
-            string test_gValuesPath = out_path + "test_m_am_gValues" + gamma_str + outTag + ".txt";
+            string test_kValuesPath = out_path + "test_m_am_kValues" + gamma_str + outTag + ".csv";
+            string test_gValuesPath = out_path + "test_m_am_gValues" + gamma_str + outTag + ".csv";
             
             ofstream test_kValuesFile(test_kValuesPath.c_str());
             ofstream test_gValuesFile(test_gValuesPath.c_str());
 
-            test_kValuesFile << "k1" << " " << "k1p" << " " << "k2" << " " << "k2p" << endl;
-            test_gValuesFile << "- g1p * g2p" << " " << "g1 * g2 " << " " << "- g1 * g2" << " " << "g1p * g2p" << endl;
+            test_kValuesFile << "k1,k1p,k2,k2p\n";
+            test_gValuesFile << "g1p_g2p_neg,g1_g2,g1_g2_neg,g1p_g2p\n";
+            test_kValuesFile << fixed << setprecision(6);
+            test_gValuesFile << fixed << setprecision(6);
+            
 
             vector<vector<double>> kOut(4, vector<double>(nPos, 0.0));
             vector<vector<double>> gOut(4, vector<double>(nPos, 0.0));
@@ -829,8 +836,8 @@ int main(int argc, char** argv) {
 
 
                 // Write R values to R values file, ensuring explicit output of 0.0
-                test_kValuesFile << kOut[0][j] << " " << kOut[1][j] << " " << kOut[2][j] << " " << kOut[3][j] << endl;
-                test_gValuesFile << gOut[0][j] << " " << gOut[1][j] << " " << gOut[2][j] << " " << gOut[3][j] << endl;
+                test_kValuesFile << kOut[0][j] << "," << kOut[1][j] << "," << kOut[2][j] << "," << kOut[3][j] << "\n";
+                test_gValuesFile << gOut[0][j] << "," << gOut[1][j] << "," << gOut[2][j] << "," << gOut[3][j] << "\n";
                 
             }
 
@@ -848,17 +855,18 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             // Create files for fields and R values
-            string test_fieldsPath = out_path + "test_m_am_fieldValues" + gamma_str + outTag + ".txt";
-            string test_rValuesPath = out_path + "test_m_am_RValues" + gamma_str + outTag + ".txt";
+            string test_fieldsPath = out_path + "test_m_am_fieldValues" + gamma_str + outTag + ".csv";
+            string test_rValuesPath = out_path + "test_m_am_RValues" + gamma_str + outTag + ".csv";
             
             ofstream test_fieldsFile(test_fieldsPath.c_str());
             ofstream test_rValuesFile(test_rValuesPath.c_str());
 
             // Headers for fields and R values
-            test_fieldsFile << "fieldsOutnt[0] fieldsOutnt[1] fieldsOutnt[2] fieldsOutnt[3] "
-                    << "fieldsOutnt[4] fieldsOutnt[5] fieldsOutnt[6] fieldsOutnt[7]" << endl;
-
-            test_rValuesFile << "R0nt R1nt R2nt R3nt" << endl;
+            test_fieldsFile << "field0,field1,field2,field3,field4,field5,field6,field7\n";
+            test_rValuesFile << "R0nt,R1nt,R2nt,R3nt\n";
+            // Set precision once
+            test_fieldsFile << fixed << setprecision(6);
+            test_rValuesFile << fixed << setprecision(6);
 
             vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
             double R0nt, R1nt, R2nt, R3nt;
@@ -891,20 +899,10 @@ int main(int argc, char** argv) {
                 
 
                 // Write field values to fields file, ensuring explicit output of 0.0
-                test_fieldsFile << (fieldsOutnt[0][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[0][j])) << " "
-                        << (fieldsOutnt[1][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[1][j])) << " "
-                        << (fieldsOutnt[2][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[2][j])) << " "
-                        << (fieldsOutnt[3][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[3][j])) << " "
-                        << (fieldsOutnt[4][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[4][j])) << " "
-                        << (fieldsOutnt[5][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[5][j])) << " "
-                        << (fieldsOutnt[6][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[6][j])) << " "
-                        << (fieldsOutnt[7][j] == 0.0 ? "0.0" : to_string(fieldsOutnt[7][j])) << endl;
-
-                // Write R values to R values file, ensuring explicit output of 0.0
-                test_rValuesFile << (R0nt == 0.0 ? "0.0" : to_string(R0nt)) << " "
-                            << (R1nt == 0.0 ? "0.0" : to_string(R1nt)) << " "
-                            << (R2nt == 0.0 ? "0.0" : to_string(R2nt)) << " "
-                            << (R3nt == 0.0 ? "0.0" : to_string(R3nt)) << endl;
+                test_fieldsFile << fieldsOutnt[0][j] << "," << fieldsOutnt[1][j] << "," << fieldsOutnt[2][j] << "," 
+                                << fieldsOutnt[3][j] << "," << fieldsOutnt[4][j] << "," << fieldsOutnt[5][j] << "," 
+                                << fieldsOutnt[6][j] << "," << fieldsOutnt[7][j] << "\n";
+                test_rValuesFile << R0nt << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
             }
 
 
@@ -925,6 +923,7 @@ int main(int argc, char** argv) {
 
     if (rank == 0) { 
         cout << "Total initial data loaded/generated in: " << (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec)/1000000.0 << "s" << endl;
+        gettimeofday(&ic_end, NULL); 
         gettimeofday(&evolution_start, NULL);
         cout << "Starting field evolution..." << endl;
     }
@@ -957,6 +956,20 @@ int main(int argc, char** argv) {
 
     vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
     vector<vector<double>> fieldsOut(nb_fields, vector<double>(nPos, 0.0));
+
+    double R1nt, R2nt, R3nt;
+    int localCoreStartnt, localCoreSizent;
+    int k1, j1, i1;
+    int k_j, j_j, i_j;
+    double distance_squared;
+    double dx_diff, dy_diff, dz_diff;
+
+    if (ic_type == "monopole") {
+    vector<double> monopole_field(nPos); 
+    }      
+    double min1_value, min2_value;             
+    int min1_idx, min2_idx;                  
+    double max_near_min1; 
 
 
 
@@ -1291,22 +1304,22 @@ int main(int argc, char** argv) {
         }
 
         // Puts required headers on valsPerLoop output file:
+
         if (TimeStep == 0 and rank == 0) {
-            if (calcEnergy and wallDetect) { valsPerLoop << "Energy" << " " << "NDW" << " " << "ADW_Simple" << " " << "ADW_Full" << endl; }
+            if (calcEnergy and wallDetect) { valsPerLoop << "Energy,NDW,ADW_Simple,ADW_Full\n"; }
             else {
-                if (calcEnergy) { valsPerLoop << "Energy" << endl; }
-                if (wallDetect) { valsPerLoop << "NDW" << " " << "ADW_Simple" << " " << "ADW_Full" << endl; }
+                if (calcEnergy) { valsPerLoop << "Energy\n"; }
+                if (wallDetect) { valsPerLoop << "NDW,ADW_Simple,ADW_Full\n"; }
             }
         }
+        
+
 
         if (TimeStep == 0 and rank == 0) {
-            if(monopoleDetect) { monopoleNumber << "NM" << endl; } 
+            if(monopoleDetect) { monopoleNumber << "NM\n"; } 
             }
 
-        if (rank == 0 && TimeStep == 0) {
-            cout << "STEP 11: Starting main evolution loop" << endl;
-        }
-
+        
         // If calculating the energy, add it all up and output to text
         if (calcEnergy) {
 
@@ -1316,7 +1329,8 @@ int main(int argc, char** argv) {
 
                 for (i = 1; i < size; i++) { MPI_Recv(&totalLocalEnergy, 1, MPI_DOUBLE, i, 20, MPI_COMM_WORLD, MPI_STATUS_IGNORE);  energy += totalLocalEnergy; }
 
-                valsPerLoop << energy << " ";
+                valsPerLoop << energy;
+                if (wallDetect) valsPerLoop << ",";
 
             }
             else { MPI_Send(&totalLocalEnergy, 1, MPI_DOUBLE, 0, 20, MPI_COMM_WORLD); }
@@ -1346,7 +1360,9 @@ int main(int argc, char** argv) {
 
                 }
 
-                valsPerLoop << NDW << " " << ADW_simple << " " << ADW_full;
+                
+                if (calcEnergy) valsPerLoop << ",";
+                valsPerLoop << NDW << "," << ADW_simple << "," << ADW_full;
 
             }
             else {
@@ -1382,10 +1398,11 @@ int main(int argc, char** argv) {
 
         }
 
-        if (rank == 0 and monopoleDetect) { monopoleNumber << endl; }
+        
+        if (rank == 0 and monopoleDetect) { monopoleNumber << "\n"; }
 
 
-        if (rank == 0 and (calcEnergy or wallDetect)) { valsPerLoop << endl; }
+        if (rank == 0 and (calcEnergy or wallDetect)) { valsPerLoop << "\n"; }
 
 
         // Update the core
@@ -1412,7 +1429,7 @@ int main(int argc, char** argv) {
             double n1, n2, n3;
             int localCoreStart, localCoreSize;
             if (rank == 0) {
-                finalFields << "R0" << " " << "R1" << " " << "R2" << " " << "R3" << " " << "R4" << " " << "R5" << " " << "n1" << " " << "n2" << " " << "n3" << endl;
+                finalFields << "R0,R1,R2,R3,R4,R5,n1,n2,n3\n";
 
                 for (comp = 0; comp < nb_fields; comp++) {
 
@@ -1445,7 +1462,8 @@ int main(int argc, char** argv) {
                     n3 = -1 * (pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) - pow(fieldsOut[2][i], 2) - pow(fieldsOut[3][i], 2) + pow(fieldsOut[4][i], 2) + pow(fieldsOut[5][i], 2) - pow(fieldsOut[6][i], 2) - pow(fieldsOut[7][i], 2));
 
 
-                    finalFields << R0 << " " << R1 << " " << R2 << " " << R3 << " " << R4 << " " << R5 << " " << n1 << " " << n2 << " " << n3 << endl;
+                    finalFields << R0 << "," << R1 << "," << R2 << "," << R3 << "," << R4 << "," << R5 << "," << n1 << "," << n2 << "," << n3 << "\n";
+
 
                 }
 
@@ -1454,8 +1472,6 @@ int main(int argc, char** argv) {
             }
 
             else {
-
-
 
                 for (comp = 0; comp < nb_fields; comp++) {
 
@@ -1479,7 +1495,7 @@ int main(int argc, char** argv) {
 
             if (rank == 0) {
                 // Create files
-                string TimeStepPath = out_path + "fields_timestep=" + to_string(TimeStep) + outTag + ".txt";
+                string TimeStepPath = out_path + "fields_timestep=" + to_string(TimeStep) + outTag + ".csv";
                 ofstream Gif(TimeStepPath.c_str());
                 Gif << "R1" << " " << "R2" << " " << "R3" << endl;
 
@@ -1530,24 +1546,20 @@ int main(int argc, char** argv) {
         */
 
 
-        
-
         if (makeGif and TimeStep % saveFreq == 0) {
 
             if (rank == 0) {
                 // Create files for fields and R values
-                string rValuesPath = out_path + "R_values_" + gamma_str + "_timestep=" + to_string(TimeStep) + outTag + ".txt";
+                string rValuesPath = out_path + "R_values_" + gamma_str + "_timestep=" + to_string(TimeStep) + outTag + ".csv";
                 
                 ofstream rValuesFile(rValuesPath.c_str());
 
                 // Headers for fields and R values
 
-                rValuesFile << "R1nt R2nt R3nt" << endl;
+                rValuesFile << "R1nt,R2nt,R3nt\n";
+                rValuesFile << fixed << setprecision(6);
                 
 
-                double R1nt, R2nt, R3nt;
-                int localCoreStartnt;
-                int localCoreSizent;
 
                 // Gather field data from all processes
                 for (comp = 0; comp < nb_fields; comp++) {
@@ -1573,14 +1585,116 @@ int main(int argc, char** argv) {
                     R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
 
                     // Write R values to R values file, ensuring explicit output of 0.0
-                    rValuesFile << (R1nt == 0.0 ? "0.0" : to_string(R1nt)) << " "
-                                << (R2nt == 0.0 ? "0.0" : to_string(R2nt)) << " "
-                                << (R3nt == 0.0 ? "0.0" : to_string(R3nt)) << endl;
+                    rValuesFile << R1nt << "," << R2nt << "," << R3nt << "\n";
+
+                    if (ic_type == "monopole") {
+                    monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
+                    }
                 }
 
-
-
                 rValuesFile.close();
+
+                                // Monopole tracking for monopole initial conditions
+                if (ic_type == "monopole") {
+                    
+                    // Create monopole tracking file if this is the first save
+                    string monopoleTrackingPath = out_path + "monopole_tracking_" + gamma_str + outTag + ".csv";
+                    ofstream monopoleFile;
+                    
+                    if (TimeStep == 0) {
+                        monopoleFile.open(monopoleTrackingPath.c_str());
+                        monopoleFile << "timestep,x1_center,y1_center,z1_center,x2_center,y2_center,z2_center" << endl;
+                    } else {
+                        monopoleFile.open(monopoleTrackingPath.c_str(), ios::app);
+                    }
+                    
+                    // Simple approach: find two lowest values with separation constraint
+                    min1_value = 1e10;
+                    min2_value = 1e10;
+                    min1_idx = -1;
+                    min2_idx = -1;
+                    
+                    // First pass: find absolute minimum
+                    for (j = 0; j < nPos; j++) {
+                        if (monopole_field[j] < min1_value) {
+                            min1_value = monopole_field[j];
+                            min1_idx = j;
+                        }
+                    }
+                    
+
+                    // Second pass: find second minimum with separation constraint
+                    if (min1_idx != -1) {
+                        // Convert min1_idx to 3D coordinates
+                        k1 = min1_idx % nz;
+                        j1 = (min1_idx / nz) % ny;
+                        i1 = min1_idx / (ny * nz);
+                        
+                        // Find maximum value within 5 grid points of first minimum
+                        max_near_min1 = 0.0;
+                        
+                        
+                        
+                        for (j = 0; j < nPos; j++) {
+                            k_j = j % nz;
+                            j_j = (j / nz) % ny;
+                            i_j = j / (ny * nz);
+
+                            dx_diff = i_j - i1;
+                            dy_diff = j_j - j1;
+                            dz_diff = k_j - k1;
+                            distance_squared = dx_diff*dx_diff + dy_diff*dy_diff + dz_diff*dz_diff;
+                            
+                            if (distance_squared <= 25.0) {
+                                max_near_min1 = max(max_near_min1, monopole_field[j]);
+                            }
+                        }
+                        
+                        // Find second minimum outside 5 grid point radius and below max_near_min1
+                        for (j = 0; j < nPos; j++) {
+                            k_j = j % nz;
+                            j_j = (j / nz) % ny;
+                            i_j = j / (ny * nz);
+
+                            dx_diff = i_j - i1;
+                            dy_diff = j_j - j1;
+                            dz_diff = k_j - k1;
+                            distance_squared = dx_diff*dx_diff + dy_diff*dy_diff + dz_diff*dz_diff;
+
+                            if (distance_squared > 25.0 && monopole_field[j] < min2_value && monopole_field[j] < max_near_min1) {
+                                min2_value = monopole_field[j];
+                                min2_idx = j;
+                            }
+                        }
+                    }
+                    
+                    // Convert indices to physical coordinates and output
+                    double x1_center = -1, y1_center = -1, z1_center = -1;
+                    double x2_center = -1, y2_center = -1, z2_center = -1;
+                    
+                    if (min1_idx != -1) {
+                        
+                        x1_center = i1 * dx;
+                        y1_center = j1 * dy;
+                        z1_center = k1 * dz;
+                    }
+                    
+                    if (min2_idx != -1) {
+                        int k2 = min2_idx % nz;
+                        int j2 = (min2_idx / nz) % ny;
+                        int i2 = min2_idx / (ny * nz);
+                        
+                        x2_center = i2 * dx;
+                        y2_center = j2 * dy;
+                        z2_center = k2 * dz;
+                    }
+                    
+                    // Output to file (using -1 instead of NaN for compatibility)
+                    monopoleFile << TimeStep << "," << x1_center << "," << y1_center << "," << z1_center << "," 
+                                << x2_center << "," << y2_center << "," << z2_center << endl;
+                    
+                    monopoleFile.close();
+                }
             }
 
             else {
