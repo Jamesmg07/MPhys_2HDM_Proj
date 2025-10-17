@@ -6,9 +6,9 @@ from pathlib import Path
 import matplotlib.animation as animation
 
 # Simulation parameters
-DATA_DIR = Path("./Data/")
-OUTPUT_DIR = Path("./Plots/")
-nx, ny, nz = 64, 64, 64
+DATA_DIR = Path("/share/centaurus_nas/mkza/Week_3/Monopole_05pi/")
+OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Plots/")
+nx, ny, nz = 256, 256, 256
 dx, dy, dz = 0.5, 0.5, 0.5
 dt = 0.1  # Simulation timestep
 nPos = nx * ny * nz
@@ -19,12 +19,14 @@ MONOPOLE_1_POS = (31.5, 31.5, 43.5)  # Index positions
 MONOPOLE_2_POS = (31.5, 31.5, 19.5)  # Index positions
 MONOPOLE_CENTER_Y = 31.5
 
+
+
 # Create output directory for plots
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 def print_progress(step, total_steps, message):
     """Print progress with step counter"""
-    print(f"[{step}/{total_steps}] {message}")
+    print(f"[{step}/{total_steps}] {message}") 
 
 def extract_timestep(filename):
     """Extract timestep from filename"""
@@ -34,13 +36,13 @@ def extract_timestep(filename):
 def find_energy_files():
     """Find energy files from the simulation"""
     # Look for energy files with gamma in the name
-    files = list(DATA_DIR.glob("energy_gamma=*_nx64_*.txt"))
+    files = list(DATA_DIR.glob(f"energy_gamma=*_nx{nx}_*.txt"))
     return files
 
 def find_r_values_files():
     """Find all R-values files from the simulation"""
     # Updated to look for the new gamma-dependent naming
-    files = list(DATA_DIR.glob("R_values_gamma=*_timestep=*_nx64_*.txt"))
+    files = list(DATA_DIR.glob(f"R_values_gamma=*_timestep=*_nx{nx}_*.txt"))
     files.sort(key=extract_timestep)
     return files
 
