@@ -1136,12 +1136,22 @@ int main(int argc, char** argv) {
             }
 
             // Optimized evolution for all fields using lookup tables
-            l4m5_coeffs[8] = {f4, f5, f6, f7, f0, f1, f2, f3};
-            l4p5_coeffs[8] = {f5, -f4, f7, -f6, -f1, f0, -f3, f2};
-            mu_terms[8] = {mu1_term, mu1_term, mu1_term, mu1_term, mu2_term, mu2_term, mu2_term, mu2_term};
-            lambda_terms[8] = {lambda1_term, lambda1_term, lambda1_term, lambda1_term, lambda2_term, lambda2_term, lambda2_term, lambda2_term};
-            double lambda3_phi_sq[8] = {phi2_sq, phi2_sq, phi2_sq, phi2_sq, phi1_sq, phi1_sq, phi1_sq, phi1_sq};
+            l4m5_coeffs[0] = f4; l4m5_coeffs[1] = f5; l4m5_coeffs[2] = f6; l4m5_coeffs[3] = f7;
+            l4m5_coeffs[4] = f0; l4m5_coeffs[5] = f1; l4m5_coeffs[6] = f2; l4m5_coeffs[7] = f3;
+            
+            l4p5_coeffs[0] = f5; l4p5_coeffs[1] = -f4; l4p5_coeffs[2] = f7; l4p5_coeffs[3] = -f6;
+            l4p5_coeffs[4] = -f1; l4p5_coeffs[5] = f0; l4p5_coeffs[6] = -f3; l4p5_coeffs[7] = f2;
+            
+            mu_terms[0] = mu1_term; mu_terms[1] = mu1_term; mu_terms[2] = mu1_term; mu_terms[3] = mu1_term;
+            mu_terms[4] = mu2_term; mu_terms[5] = mu2_term; mu_terms[6] = mu2_term; mu_terms[7] = mu2_term;
+            
+            lambda_terms[0] = lambda1_term; lambda_terms[1] = lambda1_term; lambda_terms[2] = lambda1_term; lambda_terms[3] = lambda1_term;
+            lambda_terms[4] = lambda2_term; lambda_terms[5] = lambda2_term; lambda_terms[6] = lambda2_term; lambda_terms[7] = lambda2_term;
+            
+            lambda3_phi_sq[0] = phi2_sq; lambda3_phi_sq[1] = phi2_sq; lambda3_phi_sq[2] = phi2_sq; lambda3_phi_sq[3] = phi2_sq;
+            lambda3_phi_sq[4] = phi1_sq; lambda3_phi_sq[5] = phi1_sq; lambda3_phi_sq[6] = phi1_sq; lambda3_phi_sq[7] = phi1_sq;
 
+            
             // Vectorized field evolution
             for (comp = 0; comp < nb_fields; comp++) {
                 double fieldtt_comp = spatial_laplacians[comp] - fric * temporal_derivs[comp] + 
