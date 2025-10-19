@@ -942,9 +942,6 @@ int main(int argc, char** argv) {
     double temporal_derivs[nb_fields];
     double l4m5_coeffs[8], l4p5_coeffs[8], mu_terms[8], lambda_terms[8], lambda3_phi_sq[8];
 
-    vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
-    vector<vector<double>> fieldsOut(nb_fields, vector<double>(nPos, 0.0));
-
     double R1nt, R2nt, R3nt;
     int localCoreStartnt, localCoreSizent;
     int k1, j1, i1;
@@ -952,9 +949,7 @@ int main(int argc, char** argv) {
     double distance_squared;
     double dx_diff, dy_diff, dz_diff;
 
-    if (ic_type == "monopole") {
-    vector<double> monopole_field(nPos); 
-    }      
+    
     double min1_value, min2_value;             
     int min1_idx, min2_idx;                  
     double max_near_min1; 
@@ -1413,11 +1408,15 @@ int main(int argc, char** argv) {
         //Output the final fields.
         if (finalOut and TimeStep == nt - 1) {
             
-            double R0, R1, R2, R3, R4, R5;
-            double n1, n2, n3;
-            int localCoreStart, localCoreSize;
+            
             if (rank == 0) {
                 finalFields << "R0,R1,R2,R3,R4,R5,n1,n2,n3\n";
+
+                double R0, R1, R2, R3, R4, R5;
+                double n1, n2, n3;
+                int localCoreStart, localCoreSize;
+
+                vector<vector<double>> fieldsOut(nb_fields, vector<double>(nPos, 0.0));
 
                 for (comp = 0; comp < nb_fields; comp++) {
 
@@ -1547,6 +1546,7 @@ int main(int argc, char** argv) {
                 rValuesFile << "R1nt,R2nt,R3nt\n";
                 rValuesFile << fixed << setprecision(6);
                 
+                vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
 
 
                 // Gather field data from all processes
@@ -1564,6 +1564,9 @@ int main(int argc, char** argv) {
                     }
                 }
 
+                if (ic_type == "monopole") {
+                    vector<double> monopole_field(nPos); 
+                }      
                 // Output fields and R values to separate files
                 for (j = 0; j < nPos; j++) {
 
