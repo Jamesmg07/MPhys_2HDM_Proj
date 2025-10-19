@@ -8,8 +8,8 @@ import time  # Add timing
 
 # Simulation parameters
 DATA_DIR = Path("/share/centaurus_nas/mkza/Week_3/Monopole_05pi/")
-OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Week_3/Monopole_05pi/")
-nx, ny, nz = 256, 256, 256
+OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Week_3/Plots/")
+nx, ny, nz = 128,128,128  # Grid dimensions
 dx, dy, dz = 0.5, 0.5, 0.5
 dt = 0.1  # Simulation timestep
 nPos = nx * ny * nz
@@ -86,7 +86,7 @@ def find_energy_files():
 def find_r_values_files():
     """Find all R-values files from the simulation"""
     # Updated pattern to match new C++ naming: R_values__timestep=X_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
-    files = list(DATA_DIR.glob(f"R_values__timestep=*gamma=*pi_nx{nx}_*.csv"))
+    files = list(DATA_DIR.glob(f"R_values__timestep=*gamma=*pi_nx={nx}_*.csv"))
     files.sort(key=extract_timestep)
     return files
 
