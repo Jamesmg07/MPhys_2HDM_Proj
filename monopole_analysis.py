@@ -74,19 +74,19 @@ def print_progress(step, total_steps, message):
 
 def extract_timestep(filename):
     """Extract timestep from filename"""
-    match = re.search(r'timestep=(\d+)', filename.name)
+    match = re.search(r'timestep=(\d+)gamma=', filename.name)
     return int(match.group(1)) if match else 0
 
 def find_energy_files():
     """Find energy files from the simulation"""
     # Updated pattern to match new C++ naming: energy_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
-    files = list(DATA_DIR.glob(f"energy_gamma=*pi_nx{nx}_*.csv"))
+    files = list(DATA_DIR.glob(f"energy_gamma=*pi_nx={nx}_*.csv"))
     return files
 
 def find_r_values_files():
     """Find all R-values files from the simulation"""
     # Updated pattern to match new C++ naming: R_values__timestep=X_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
-    files = list(DATA_DIR.glob(f"R_values_gamma=*pi_timestep=*_nx{nx}_*.csv"))
+    files = list(DATA_DIR.glob(f"R_values__timestep=*gamma=*pi_nx{nx}_*.csv"))
     files.sort(key=extract_timestep)
     return files
 
