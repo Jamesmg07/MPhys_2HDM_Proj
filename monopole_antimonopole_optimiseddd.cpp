@@ -159,6 +159,7 @@ int main(int argc, char** argv) {
         cout << "Number of MPI processes: " << size << endl;
         cout << "Number of timesteps: " << nt << endl;
         cout << "Initial condition type: " << ic_type << endl;
+        cout << "Gamma: " << gamma_mult << "pi" << endl;
     }
 
     if (rank == 0) {
