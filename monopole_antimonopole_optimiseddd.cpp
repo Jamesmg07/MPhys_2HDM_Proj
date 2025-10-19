@@ -1564,9 +1564,9 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                if (ic_type == "monopole") {
-                    vector<double> monopole_field(nPos); 
-                }      
+                
+                vector<double> monopole_field(nPos); 
+                    
                 // Output fields and R values to separate files
                 for (j = 0; j < nPos; j++) {
 
