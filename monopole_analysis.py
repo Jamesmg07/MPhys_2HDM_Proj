@@ -79,14 +79,14 @@ def extract_timestep(filename):
 
 def find_energy_files():
     """Find energy files from the simulation"""
-    # Look for energy files with gamma in the name
-    files = list(DATA_DIR.glob(f"energy_gamma=*_nx{nx}_*.txt"))
+    # Updated pattern to match new C++ naming: energy_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
+    files = list(DATA_DIR.glob(f"energy_gamma=*pi_nx{nx}_*.csv"))
     return files
 
 def find_r_values_files():
     """Find all R-values files from the simulation"""
-    # Updated to look for the new gamma-dependent naming
-    files = list(DATA_DIR.glob(f"R_values_gamma=*_timestep=*_nx{nx}_*.txt"))
+    # Updated pattern to match new C++ naming: R_values__timestep=X_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
+    files = list(DATA_DIR.glob(f"R_values__timestep=*_gamma=*pi_nx{nx}_*.csv"))
     files.sort(key=extract_timestep)
     return files
 
@@ -129,8 +129,16 @@ def plot_energy_vs_time(energy_files):
             print(f"    Error: Could not load energy data from {energy_file}")
             continue
         
+        # Calculate vacuum energy to subtract
+        # Using physical volume: (nx-1)*dx * (ny-1)*dy * (nz-1)*dz for length-based calculation
+        # or nx*dx * ny*dy * nz*dz for grid-based calculation
+        vacuum_energy = (1/8) * ((nx-1) * dx)**3  # Using gridsize-1 as you suggested
+        
+        # Subtract vacuum energy from all values
+        energy_data_corrected = energy_data - vacuum_energy
+        
         # Create time array
-        timesteps = np.arange(len(energy_data))
+        timesteps = np.arange(len(energy_data_corrected))
         time_values = timesteps * dt  # Convert to physical time
         
         # Extract gamma value from filename for title
@@ -141,24 +149,24 @@ def plot_energy_vs_time(energy_files):
         
         # Plot energy vs time
         plt.subplot(2, 1, 1)
-        plt.plot(time_values, energy_data, 'b-', linewidth=2, label='Total Energy')
+        plt.plot(time_values, energy_data_corrected, 'b-', linewidth=2, label='Total Energy (vacuum subtracted)')
         plt.xlabel('Time')
         plt.ylabel('Energy')
-        plt.title(f'Energy Evolution (γ = {gamma_str})')
+        plt.title(f'Energy Evolution (γ = {gamma_str}) - Vacuum Energy Subtracted')
         plt.grid(True, alpha=0.3)
         plt.legend()
         
         # Plot energy vs timestep
         plt.subplot(2, 1, 2)
-        plt.plot(timesteps, energy_data, 'r-', linewidth=2, label='Total Energy')
+        plt.plot(timesteps, energy_data_corrected, 'r-', linewidth=2, label='Total Energy (vacuum subtracted)')
         plt.xlabel('Timestep')
         plt.ylabel('Energy')
-        plt.title(f'Energy Evolution vs Timestep (γ = {gamma_str})')
+        plt.title(f'Energy Evolution vs Timestep (γ = {gamma_str}) - Vacuum Energy Subtracted')
         plt.grid(True, alpha=0.3)
         plt.legend()
         
-        # Add simulation info
-        plt.figtext(0.02, 0.02, f'Grid: {nx}×{ny}×{nz}, dt = {dt}, Total steps = {len(energy_data)}', 
+        # Add simulation info including vacuum energy subtracted
+        plt.figtext(0.02, 0.02, f'Grid: {nx}×{ny}×{nz}, dt = {dt}, Total steps = {len(energy_data_corrected)}\nVacuum energy subtracted: {vacuum_energy:.6f}', 
                    fontsize=10, ha='left')
         
         save_path = OUTPUT_DIR / f'energy_evolution_gamma_{gamma_str}.png'
@@ -166,10 +174,11 @@ def plot_energy_vs_time(energy_files):
         
         # Print energy statistics
         print(f"    Energy statistics for γ = {gamma_str}:")
-        print(f"      Initial energy: {energy_data[0]:.6f}")
-        print(f"      Final energy: {energy_data[-1]:.6f}")
-        print(f"      Energy change: {energy_data[-1] - energy_data[0]:.6f}")
-        print(f"      Energy conservation: {abs(energy_data[-1] - energy_data[0])/energy_data[0]*100:.4f}%")
+        print(f"      Vacuum energy subtracted: {vacuum_energy:.6f}")
+        print(f"      Initial energy (corrected): {energy_data_corrected[0]:.6f}")
+        print(f"      Final energy (corrected): {energy_data_corrected[-1]:.6f}")
+        print(f"      Energy change: {energy_data_corrected[-1] - energy_data_corrected[0]:.6f}")
+        print(f"      Energy conservation: {abs(energy_data_corrected[-1] - energy_data_corrected[0])/abs(energy_data_corrected[0])*100:.4f}%")
 
 def load_r_field_data(filepath):
     """Load R-field data and reshape to 3D grid - optimized version"""
@@ -209,96 +218,132 @@ def save_and_close_plot(save_path, message):
     print(message)
     plt.close()
 
-def prepare_slice_data(r_fields, slice_index):
+def prepare_slice_data(r_fields, slice_index, slice_type):
     """Prepare slice data for plotting - common function for both individual plots and GIF"""
-    # Extract slices (x-z plane at fixed y where monopoles are located)
-    field1_slice = r_fields['R1nt'][:, slice_index, :]  # R1
-    field2_slice = r_fields['R2nt'][:, slice_index, :]  # R2
-    field3_slice = r_fields['R3nt'][:, slice_index, :]  # R3
+    if slice_type == 'xz':
+        # Extract slices (x-z plane at fixed y where monopoles are located)
+        field1_slice = r_fields['R1nt'][:, slice_index, :]  # R1
+        field2_slice = r_fields['R2nt'][:, slice_index, :]  # R2
+        field3_slice = r_fields['R3nt'][:, slice_index, :]  # R3
+        
+        # Create coordinate grids - z as vertical (y-axis), x as horizontal (x-axis)
+        coord1 = np.arange(nx) * dx  # x coordinates
+        coord2 = np.arange(nz) * dz  # z coordinates
+        
+        # Subsample field components for arrows (R1, R3)
+        field1_sub = field1_slice[::ARROW_STEP, ::ARROW_STEP]
+        field3_sub = field3_slice[::ARROW_STEP, ::ARROW_STEP]
+        
+        # Calculate field magnitude for color coding (R1, R3)
+        field_magnitude = np.sqrt(field1_sub**2 + field3_sub**2)
+        
+        # Don't normalize direction - show actual field strength, but make arrows visible
+        mask = field_magnitude > 1e-10
+        field1_plot = np.where(mask, field1_sub, 0)
+        field2_plot = np.where(mask, field3_sub, 0)  # Using R3 for xz slice
+        
+    elif slice_type == 'xy':
+        # Extract slices (x-y plane at fixed z)
+        field1_slice = r_fields['R1nt'][:, :, slice_index]  # R1
+        field2_slice = r_fields['R2nt'][:, :, slice_index]  # R2
+        field3_slice = r_fields['R3nt'][:, :, slice_index]  # R3
+        
+        # Create coordinate grids - y as vertical (y-axis), x as horizontal (x-axis)
+        coord1 = np.arange(nx) * dx  # x coordinates
+        coord2 = np.arange(ny) * dy  # y coordinates
+        
+        # Subsample field components for arrows (R1, R2)
+        field1_sub = field1_slice[::ARROW_STEP, ::ARROW_STEP]
+        field2_sub = field2_slice[::ARROW_STEP, ::ARROW_STEP]
+        
+        # Calculate field magnitude for color coding (R1, R2)
+        field_magnitude = np.sqrt(field1_sub**2 + field2_sub**2)
+        
+        # Don't normalize direction - show actual field strength, but make arrows visible
+        mask = field_magnitude > 1e-10
+        field1_plot = np.where(mask, field1_sub, 0)
+        field2_plot = np.where(mask, field2_sub, 0)  # Using R2 for xy slice
+        
+    else:
+        raise ValueError(f"Unknown slice_type: {slice_type}. Must be 'xz' or 'xy'")
     
-    # Calculate R1² + R2² + R3² for monopole identification
+    # Calculate R1² + R2² + R3² for monopole identification (common to both slice types)
     monopole_field = field1_slice**2 + field2_slice**2 + field3_slice**2
-    
-    # Create coordinate grids - z as vertical (y-axis), x as horizontal (x-axis)
-    x_coords = np.arange(nx) * dx
-    z_coords = np.arange(nz) * dz
-    
-    # Subsample field components for arrows
-    field1_sub = field1_slice[::ARROW_STEP, ::ARROW_STEP]
-    field3_sub = field3_slice[::ARROW_STEP, ::ARROW_STEP]
-    
-    # Calculate field magnitude for color coding
-    field_magnitude = np.sqrt(field1_sub**2 + field3_sub**2)
-    
-    # Don't normalize direction - show actual field strength, but make arrows visible
-    mask = field_magnitude > 1e-10
-    field1_plot = np.where(mask, field1_sub, 0)
-    field3_plot = np.where(mask, field3_sub, 0)
     
     return {
         'monopole_field': monopole_field,
         'field1_plot': field1_plot,
-        'field3_plot': field3_plot,
+        'field2_plot': field2_plot,
         'field_magnitude': field_magnitude,
-        'x_coords': x_coords,
-        'z_coords': z_coords
+        'coord1': coord1,
+        'coord2': coord2,
+        'slice_type': slice_type
     }
 
 def setup_slice_plot(ax, slice_data, vmin, vmax, arrow_scale, global_arrow_max, slice_index, timestep):
     """Setup the slice plot with common styling - used by both individual plots and GIF"""
     monopole_field = slice_data['monopole_field']
     field1_plot = slice_data['field1_plot']
-    field3_plot = slice_data['field3_plot']
+    field2_plot = slice_data['field2_plot']
     field_magnitude = slice_data['field_magnitude']
-    x_coords = slice_data['x_coords']
-    z_coords = slice_data['z_coords']
+    coord1 = slice_data['coord1']
+    coord2 = slice_data['coord2']
+    slice_type = slice_data['slice_type']
     
     # Create subsampled coordinate arrays for arrows
-    x_sub = x_coords[::ARROW_STEP]
-    z_sub = z_coords[::ARROW_STEP]
-    X_sub, Z_sub = np.meshgrid(x_sub, z_sub)
+    coord1_sub = coord1[::ARROW_STEP]
+    coord2_sub = coord2[::ARROW_STEP]
+    X_sub, Y_sub = np.meshgrid(coord1_sub, coord2_sub)
     
     # Background field plot
     im = ax.imshow(monopole_field.T, origin='lower', 
-                   extent=[x_coords[0], x_coords[-1], z_coords[0], z_coords[-1]],
+                   extent=[coord1[0], coord1[-1], coord2[0], coord2[-1]],
                    aspect='auto', cmap='plasma', vmin=vmin, vmax=vmax,
                    interpolation='bilinear')
     
     # Arrow plot
-    quiv = ax.quiver(X_sub, Z_sub, field1_plot.T, field3_plot.T,
+    quiv = ax.quiver(X_sub, Y_sub, field1_plot.T, field2_plot.T,
                      field_magnitude.T, scale=arrow_scale, width=ARROW_WIDTH, 
                      alpha=0.9, cmap='Reds', scale_units='xy',
                      clim=(0, global_arrow_max))
     
-    # Labels and title
-    ax.set_xlabel('x position')
-    ax.set_ylabel('z position')
-    ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
-    ax.set_xlim(x_coords[0], x_coords[-1])
-    ax.set_ylim(z_coords[0], z_coords[-1])
+    # Labels and title based on slice type
+    if slice_type == 'xz':
+        ax.set_xlabel('x position')
+        ax.set_ylabel('z position')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        vector_label = 'Field magnitude |R1,R3|'
+    elif slice_type == 'xy':
+        ax.set_xlabel('x position')
+        ax.set_ylabel('y position')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        vector_label = 'Field magnitude |R1,R2|'
     
-    return im, quiv
+    ax.set_xlim(coord1[0], coord1[-1])
+    ax.set_ylim(coord2[0], coord2[-1])
+    
+    return im, quiv, vector_label
 
-def create_individual_plot(slice_data, timestep, vmin, vmax, global_arrow_max):
+def create_individual_plot(slice_data, timestep, vmin, vmax, global_arrow_max, slice_index):
     """Create and save individual plot from pre-calculated slice data"""
-    slice_index = int(MONOPOLE_CENTER_Y)
     arrow_scale = max(global_arrow_max * 0.25, 1e-6)
+    slice_type = slice_data['slice_type']
     
     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
     
     # Setup plot using common function
-    im, quiv = setup_slice_plot(ax, slice_data, vmin, vmax, arrow_scale, global_arrow_max, slice_index, timestep)
+    im, quiv, vector_label = setup_slice_plot(ax, slice_data, vmin, vmax, arrow_scale, global_arrow_max, slice_index, timestep)
     
     # Add colorbars
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label('R1² + R2² + R3² (monopole field strength)')
     
     cbar2 = plt.colorbar(quiv, ax=ax, shrink=0.6, pad=0.1)
-    cbar2.set_label('Field magnitude |R1,R3|')
+    cbar2.set_label(vector_label)
     
-    # Save and close
-    save_and_close_plot(OUTPUT_DIR / f'xz_monopole_field_t{timestep}.png',
-                       f"    Saved: xz_monopole_field_t{timestep}.png")
+    # Save and close with appropriate filename
+    filename = f'{slice_type}_monopole_field_t{timestep}.png'
+    save_and_close_plot(OUTPUT_DIR / filename, f"    Saved: {filename}")
 
 def analyze_and_create_all_outputs(r_values_files):
     """Single function that creates both individual plots and GIF - no duplication of work"""
@@ -316,13 +361,19 @@ def analyze_and_create_all_outputs(r_values_files):
         selected_files = [r_values_files[i] for i in indices]
         print(f"  Using {len(selected_files)} evenly spaced timesteps out of {len(r_values_files)} total")
 
-    # SINGLE PASS: Load all data and calculate everything once
-    all_slice_data = []
+    # SINGLE PASS: Load all data and calculate everything once for both slice types
+    all_slice_data_xz = []
+    all_slice_data_xy = []
     timesteps = []
-    global_vmax = 0
-    global_vmin = float('inf')
-    global_arrow_max = 0
-    slice_index = int(MONOPOLE_CENTER_Y)
+    global_vmax_xz = 0
+    global_vmin_xz = float('inf')
+    global_arrow_max_xz = 0
+    global_vmax_xy = 0
+    global_vmin_xy = float('inf')
+    global_arrow_max_xy = 0
+    
+    slice_index_xz = int(MONOPOLE_CENTER_Y)  # y slice for xz plot
+    slice_index_xy = int((nz - 1) // 2)      # z=0 slice for xy plot (center of z)
 
     print("  Loading and processing all data (single pass)...")
     load_start = time.time()
@@ -334,99 +385,172 @@ def analyze_and_create_all_outputs(r_values_files):
         r_fields = load_r_field_data(file)
 
         if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
-            # Calculate slice data once
-            slice_data = prepare_slice_data(r_fields, slice_index)
-            all_slice_data.append(slice_data)
+            # Calculate slice data once for both slice types
+            slice_data_xz = prepare_slice_data(r_fields, slice_index_xz, 'xz')
+            slice_data_xy = prepare_slice_data(r_fields, slice_index_xy, 'xy')
+            
+            all_slice_data_xz.append(slice_data_xz)
+            all_slice_data_xy.append(slice_data_xy)
             timesteps.append(timestep)
             
-            monopole_field = slice_data['monopole_field']
-            field_magnitude = slice_data['field_magnitude']
+            # XZ slice statistics
+            monopole_field_xz = slice_data_xz['monopole_field']
+            field_magnitude_xz = slice_data_xz['field_magnitude']
+            
+            # XY slice statistics
+            monopole_field_xy = slice_data_xy['monopole_field']
+            field_magnitude_xy = slice_data_xy['field_magnitude']
             
             # Debug: Print field statistics
-            print(f"      Field stats: min={np.min(monopole_field):.6f}, max={np.max(monopole_field):.6f}, mean={np.mean(monopole_field):.6f}")
-            print(f"      Arrow magnitude: min={np.min(field_magnitude):.6f}, max={np.max(field_magnitude):.6f}")
+            print(f"      XZ slice stats: min={np.min(monopole_field_xz):.6f}, max={np.max(monopole_field_xz):.6f}")
+            print(f"      XY slice stats: min={np.min(monopole_field_xy):.6f}, max={np.max(monopole_field_xy):.6f}")
             
-            # Update global scaling parameters
-            frame_vmax = np.percentile(monopole_field, 99)
-            frame_vmin = np.min(monopole_field)
-            frame_arrow_max = np.max(field_magnitude)
+            # Update global scaling parameters for XZ
+            frame_vmax_xz = np.percentile(monopole_field_xz, 99)
+            frame_vmin_xz = np.min(monopole_field_xz)
+            frame_arrow_max_xz = np.max(field_magnitude_xz)
             
-            global_vmax = max(global_vmax, frame_vmax)
-            global_vmin = min(global_vmin, frame_vmin)
-            global_arrow_max = max(global_arrow_max, frame_arrow_max)
+            global_vmax_xz = max(global_vmax_xz, frame_vmax_xz)
+            global_vmin_xz = min(global_vmin_xz, frame_vmin_xz)
+            global_arrow_max_xz = max(global_arrow_max_xz, frame_arrow_max_xz)
+            
+            # Update global scaling parameters for XY
+            frame_vmax_xy = np.percentile(monopole_field_xy, 99)
+            frame_vmin_xy = np.min(monopole_field_xy)
+            frame_arrow_max_xy = np.max(field_magnitude_xy)
+            
+            global_vmax_xy = max(global_vmax_xy, frame_vmax_xy)
+            global_vmin_xy = min(global_vmin_xy, frame_vmin_xy)
+            global_arrow_max_xy = max(global_arrow_max_xy, frame_arrow_max_xy)
         else:
             print(f"      Skipped: Invalid data for timestep {timestep}")
 
     print(f"  Data processing completed in {time.time() - load_start:.2f}s")
 
-    if len(all_slice_data) == 0:
+    if len(all_slice_data_xz) == 0:
         print("  Error: No valid data found!")
         return
 
-    print(f"  Successfully processed {len(all_slice_data)} timesteps")
-    print(f"  Global scaling - vmin: {global_vmin:.6f}, vmax: {global_vmax:.6f}, arrow_max: {global_arrow_max:.6f}")
+    print(f"  Successfully processed {len(all_slice_data_xz)} timesteps")
+    print(f"  XZ Global scaling - vmin: {global_vmin_xz:.6f}, vmax: {global_vmax_xz:.6f}, arrow_max: {global_arrow_max_xz:.6f}")
+    print(f"  XY Global scaling - vmin: {global_vmin_xy:.6f}, vmax: {global_vmax_xy:.6f}, arrow_max: {global_arrow_max_xy:.6f}")
 
-    # CREATE INDIVIDUAL PLOTS using pre-calculated data
-    print("\n  Creating individual plots...")
+    # CREATE INDIVIDUAL PLOTS using pre-calculated data for both slice types
+    print("\n  Creating individual XZ plots...")
     individual_start = time.time()
     
-    for i, (slice_data, timestep) in enumerate(zip(all_slice_data, timesteps)):
-        print(f"    [{i+1}/{len(all_slice_data)}] Creating individual plot for timestep {timestep}...")
-        create_individual_plot(slice_data, timestep, global_vmin, global_vmax, global_arrow_max)
+    for i, (slice_data, timestep) in enumerate(zip(all_slice_data_xz, timesteps)):
+        print(f"    [{i+1}/{len(all_slice_data_xz)}] Creating XZ plot for timestep {timestep}...")
+        create_individual_plot(slice_data, timestep, global_vmin_xz, global_vmax_xz, global_arrow_max_xz, slice_index_xz)
+    
+    print("\n  Creating individual XY plots...")
+    
+    for i, (slice_data, timestep) in enumerate(zip(all_slice_data_xy, timesteps)):
+        print(f"    [{i+1}/{len(all_slice_data_xy)}] Creating XY plot for timestep {timestep}...")
+        create_individual_plot(slice_data, timestep, global_vmin_xy, global_vmax_xy, global_arrow_max_xy, slice_index_xy)
     
     print(f"  Individual plots completed in {time.time() - individual_start:.2f}s")
 
-    # CREATE GIF ANIMATION using the same pre-calculated data
-    print("\n  Creating GIF animation...")
+    # CREATE GIF ANIMATIONS using the same pre-calculated data for both slice types
+    print("\n  Creating XZ GIF animation...")
     gif_start = time.time()
     
-    arrow_scale = max(global_arrow_max * 0.25, 1e-6)
-    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    # XZ GIF
+    arrow_scale_xz = max(global_arrow_max_xz * 0.25, 1e-6)
+    fig_xz, ax_xz = plt.subplots(1, 1, figsize=(12, 8))
 
     # Setup first frame using common function
-    im, quiv = setup_slice_plot(ax, all_slice_data[0], global_vmin, global_vmax, 
-                                arrow_scale, global_arrow_max, slice_index, timesteps[0])
+    im_xz, quiv_xz, vector_label_xz = setup_slice_plot(ax_xz, all_slice_data_xz[0], global_vmin_xz, global_vmax_xz, 
+                                                       arrow_scale_xz, global_arrow_max_xz, slice_index_xz, timesteps[0])
 
     # Add colorbars
-    cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label('R1² + R2² + R3² (monopole field strength)')
+    cbar_xz = fig_xz.colorbar(im_xz, ax=ax_xz)
+    cbar_xz.set_label('R1² + R2² + R3² (monopole field strength)')
 
-    cbar2 = fig.colorbar(quiv, ax=ax, shrink=0.6, pad=0.1)
-    cbar2.set_label('Field magnitude |R1,R3|')
+    cbar2_xz = fig_xz.colorbar(quiv_xz, ax=ax_xz, shrink=0.6, pad=0.1)
+    cbar2_xz.set_label(vector_label_xz)
 
-    def animate(frame):
-        slice_data = all_slice_data[frame]
+    def animate_xz(frame):
+        slice_data = all_slice_data_xz[frame]
         timestep = timesteps[frame]
         
         monopole_field = slice_data['monopole_field']
         field1_plot = slice_data['field1_plot']
-        field3_plot = slice_data['field3_plot']
+        field2_plot = slice_data['field2_plot']
         field_magnitude = slice_data['field_magnitude']
 
         # Update plots
-        im.set_data(monopole_field.T)
-        im.set_clim(vmin=global_vmin, vmax=global_vmax)
-        quiv.set_UVC(field1_plot.T, field3_plot.T)
-        quiv.set_array(field_magnitude.T.flatten())
-        quiv.set_clim(0, global_arrow_max)
-        ax.set_title(f'Monopole Field Evolution (y={slice_index}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
-        return [im, quiv]
+        im_xz.set_data(monopole_field.T)
+        im_xz.set_clim(vmin=global_vmin_xz, vmax=global_vmax_xz)
+        quiv_xz.set_UVC(field1_plot.T, field2_plot.T)
+        quiv_xz.set_array(field_magnitude.T.flatten())
+        quiv_xz.set_clim(0, global_arrow_max_xz)
+        ax_xz.set_title(f'Monopole Field Evolution (y={slice_index_xz}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        return [im_xz, quiv_xz]
 
-    # Create animation
-    anim = animation.FuncAnimation(fig, animate, frames=len(all_slice_data), 
-                                 interval=200, blit=True, repeat=True)
+    # Create XZ animation
+    anim_xz = animation.FuncAnimation(fig_xz, animate_xz, frames=len(all_slice_data_xz), 
+                                     interval=200, blit=True, repeat=True)
 
-    gif_path = OUTPUT_DIR / 'monopole_field_evolution_xz_slice.gif'
-    print(f"    Saving GIF to: {gif_path}")
+    gif_path_xz = OUTPUT_DIR / 'monopole_field_evolution_xz_slice.gif'
+    print(f"    Saving XZ GIF to: {gif_path_xz}")
 
     try:
-        anim.save(gif_path, writer='pillow', fps=8, dpi=100)
-        print(f"    ✓ Successfully saved GIF: monopole_field_evolution_xz_slice.gif")
+        anim_xz.save(gif_path_xz, writer='pillow', fps=8, dpi=100)
+        print(f"    ✓ Successfully saved XZ GIF: monopole_field_evolution_xz_slice.gif")
     except Exception as e:
-        print(f"    Error saving GIF: {e}")
-        print("    Note: Make sure Pillow is installed: pip install Pillow")
+        print(f"    Error saving XZ GIF: {e}")
 
-    plt.close(fig)
+    plt.close(fig_xz)
+    
+    # XY GIF
+    print("\n  Creating XY GIF animation...")
+    arrow_scale_xy = max(global_arrow_max_xy * 0.25, 1e-6)
+    fig_xy, ax_xy = plt.subplots(1, 1, figsize=(12, 8))
+
+    # Setup first frame using common function
+    im_xy, quiv_xy, vector_label_xy = setup_slice_plot(ax_xy, all_slice_data_xy[0], global_vmin_xy, global_vmax_xy, 
+                                                       arrow_scale_xy, global_arrow_max_xy, slice_index_xy, timesteps[0])
+
+    # Add colorbars
+    cbar_xy = fig_xy.colorbar(im_xy, ax=ax_xy)
+    cbar_xy.set_label('R1² + R2² + R3² (monopole field strength)')
+
+    cbar2_xy = fig_xy.colorbar(quiv_xy, ax=ax_xy, shrink=0.6, pad=0.1)
+    cbar2_xy.set_label(vector_label_xy)
+
+    def animate_xy(frame):
+        slice_data = all_slice_data_xy[frame]
+        timestep = timesteps[frame]
+        
+        monopole_field = slice_data['monopole_field']
+        field1_plot = slice_data['field1_plot']
+        field2_plot = slice_data['field2_plot']
+        field_magnitude = slice_data['field_magnitude']
+
+        # Update plots
+        im_xy.set_data(monopole_field.T)
+        im_xy.set_clim(vmin=global_vmin_xy, vmax=global_vmax_xy)
+        quiv_xy.set_UVC(field1_plot.T, field2_plot.T)
+        quiv_xy.set_array(field_magnitude.T.flatten())
+        quiv_xy.set_clim(0, global_arrow_max_xy)
+        ax_xy.set_title(f'Monopole Field Evolution (z={slice_index_xy}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        return [im_xy, quiv_xy]
+
+    # Create XY animation
+    anim_xy = animation.FuncAnimation(fig_xy, animate_xy, frames=len(all_slice_data_xy), 
+                                     interval=200, blit=True, repeat=True)
+
+    gif_path_xy = OUTPUT_DIR / 'monopole_field_evolution_xy_slice.gif'
+    print(f"    Saving XY GIF to: {gif_path_xy}")
+
+    try:
+        anim_xy.save(gif_path_xy, writer='pillow', fps=8, dpi=100)
+        print(f"    ✓ Successfully saved XY GIF: monopole_field_evolution_xy_slice.gif")
+    except Exception as e:
+        print(f"    Error saving XY GIF: {e}")
+
+    plt.close(fig_xy)
     print(f"  GIF creation completed in {time.time() - gif_start:.2f}s")
     
     total_time = time.time() - load_start
