@@ -7,8 +7,8 @@ import matplotlib.animation as animation
 import time  # Add timing
 
 # Simulation parameters
-DATA_DIR = Path("/share/centaurus_nas/mkza/Week_3/Monopole_05pi/")
-OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Week_3/Plots/")
+DATA_DIR = Path("/share/centaurus_nas/mkza/Week_3/Monopole_0495pi/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp")
 nx, ny, nz = 128,128,128  # Grid dimensions
 dx, dy, dz = 0.5, 0.5, 0.5
 dt = 0.1  # Simulation timestep
@@ -74,7 +74,7 @@ def print_progress(step, total_steps, message):
 
 def extract_timestep(filename):
     """Extract timestep from filename"""
-    match = re.search(r'timestep=(\d+)gamma=', filename.name)
+    match = re.search(r'timestep=(\d+)', filename.name)
     return int(match.group(1)) if match else 0
 
 def find_energy_files():
@@ -88,6 +88,12 @@ def find_r_values_files():
     # Updated pattern to match new C++ naming: R_values__timestep=X_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
     files = list(DATA_DIR.glob(f"R_values__timestep=*gamma=*pi_nx={nx}_*.csv"))
     files.sort(key=extract_timestep)
+    return files
+
+def find_monopole_tracking_files():
+    """Find monopole tracking files from the simulation"""
+    # Pattern: monopole_tracking_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
+    files = list(DATA_DIR.glob(f"monopole_tracking_*nx={nx}_*.csv"))
     return files
 
 def load_energy_data(filepath):
@@ -110,6 +116,15 @@ def load_energy_data(filepath):
         return np.array(energy_values)
     except Exception as e:
         print(f"Error loading energy data from {filepath}: {e}")
+        return None
+
+def load_monopole_tracking_data(filepath):
+    """Load monopole tracking data from file"""
+    try:
+        data = pd.read_csv(filepath)
+        return data
+    except Exception as e:
+        print(f"Error loading monopole tracking data from {filepath}: {e}")
         return None
 
 def plot_energy_vs_time(energy_files):
@@ -147,27 +162,22 @@ def plot_energy_vs_time(energy_files):
         
         plt.figure(figsize=(12, 8))
         
-        # Plot energy vs time
-        plt.subplot(2, 1, 1)
-        plt.plot(time_values, energy_data_corrected, 'b-', linewidth=2, label='Total Energy (vacuum subtracted)')
+        # Single plot of energy vs time
+        plt.plot(time_values, energy_data_corrected, 'b-', linewidth=2, marker='o', markersize=4,
+                label='Total Energy (vacuum subtracted)')
         plt.xlabel('Time')
         plt.ylabel('Energy')
         plt.title(f'Energy Evolution (γ = {gamma_str}) - Vacuum Energy Subtracted')
         plt.grid(True, alpha=0.3)
         plt.legend()
         
-        # Plot energy vs timestep
-        plt.subplot(2, 1, 2)
-        plt.plot(timesteps, energy_data_corrected, 'r-', linewidth=2, label='Total Energy (vacuum subtracted)')
-        plt.xlabel('Timestep')
-        plt.ylabel('Energy')
-        plt.title(f'Energy Evolution vs Timestep (γ = {gamma_str}) - Vacuum Energy Subtracted')
-        plt.grid(True, alpha=0.3)
-        plt.legend()
-        
-        # Add simulation info including vacuum energy subtracted
-        plt.figtext(0.02, 0.02, f'Grid: {nx}×{ny}×{nz}, dt = {dt}, Total steps = {len(energy_data_corrected)}\nVacuum energy subtracted: {vacuum_energy:.6f}', 
-                   fontsize=10, ha='left')
+        # Add simulation info as text box
+        info_text = (f'Grid: {nx}×{ny}×{nz}, dt = {dt}\n'
+                    f'Total steps = {len(energy_data_corrected)}\n'
+                    f'Vacuum energy subtracted: {vacuum_energy:.6f}')
+        plt.text(0.02, 0.98, info_text, transform=plt.gca().transAxes, 
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
         
         save_path = OUTPUT_DIR / f'energy_evolution_gamma_{gamma_str}.png'
         save_and_close_plot(save_path, f"    Saved: energy_evolution_gamma_{gamma_str}.png")
@@ -180,11 +190,99 @@ def plot_energy_vs_time(energy_files):
         print(f"      Energy change: {energy_data_corrected[-1] - energy_data_corrected[0]:.6f}")
         print(f"      Energy conservation: {abs(energy_data_corrected[-1] - energy_data_corrected[0])/abs(energy_data_corrected[0])*100:.4f}%")
 
+def plot_monopole_separation(tracking_files):
+    """Plot monopole separation over time"""
+    print("\nAnalyzing monopole separation...")
+    
+    if not tracking_files:
+        print("  No monopole tracking files found!")
+        return
+    
+    for tracking_file in tracking_files:
+        print(f"  Loading monopole tracking data from: {tracking_file.name}")
+        
+        tracking_data = load_monopole_tracking_data(tracking_file)
+        
+        if tracking_data is None or len(tracking_data) == 0:
+            print(f"    Error: Could not load monopole tracking data from {tracking_file}")
+            continue
+        
+        # Extract gamma value from filename for title
+        gamma_match = re.search(r'gamma=([^_]+)', tracking_file.name)
+        gamma_str = gamma_match.group(1) if gamma_match else "unknown"
+        
+        # Calculate separation for each timestep
+        separations = []
+        valid_timesteps = []
+        
+        for _, row in tracking_data.iterrows():
+            # Check if both monopoles were found (coordinates are not -1)
+            if (row['x1_center'] != -1 and row['y1_center'] != -1 and row['z1_center'] != -1 and
+                row['x2_center'] != -1 and row['y2_center'] != -1 and row['z2_center'] != -1):
+                
+                # Calculate 3D distance
+                dx = row['x2_center'] - row['x1_center']
+                dy = row['y2_center'] - row['y1_center'] 
+                dz = row['z2_center'] - row['z1_center']
+                separation = np.sqrt(dx**2 + dy**2 + dz**2)
+                
+                separations.append(separation)
+                valid_timesteps.append(row['timestep'])
+        
+        if len(separations) == 0:
+            print(f"    Warning: No valid monopole pairs found in {tracking_file.name}")
+            continue
+        
+        # Convert to numpy arrays for plotting
+        valid_timesteps = np.array(valid_timesteps)
+        separations = np.array(separations)
+        time_values = valid_timesteps * dt  # Convert to physical time
+        
+        # Calculate initial separation for reference
+        initial_separation = separations[0] if len(separations) > 0 else 0
+        
+        plt.figure(figsize=(12, 8))
+        
+        # Single plot of separation vs time
+        plt.plot(time_values, separations, 'g-', linewidth=2, marker='o', markersize=4, 
+                label='Monopole-Antimonopole Separation')
+        plt.axhline(y=initial_separation, color='r', linestyle='--', alpha=0.7, 
+                   label=f'Initial separation = {initial_separation:.2f}')
+        plt.xlabel('Time')
+        plt.ylabel('Separation')
+        plt.title(f'Monopole-Antimonopole Separation Evolution (γ = {gamma_str})')
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        
+        # Add simulation info as text box
+        info_text = (f'Grid: {nx}×{ny}×{nz}, dt = {dt}\n'
+                    f'Valid data points: {len(separations)}/{len(tracking_data)} timesteps\n'
+                    f'Final separation: {separations[-1]:.2f}')
+        plt.text(0.02, 0.98, info_text, transform=plt.gca().transAxes, 
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+        
+        save_path = OUTPUT_DIR / f'monopole_separation_gamma_{gamma_str}.png'
+        save_and_close_plot(save_path, f"    Saved: monopole_separation_gamma_{gamma_str}.png")
+        
+        # Print separation statistics
+        print(f"    Separation statistics for γ = {gamma_str}:")
+        print(f"      Valid timesteps: {len(separations)}/{len(tracking_data)}")
+        print(f"      Initial separation: {initial_separation:.6f}")
+        print(f"      Final separation: {separations[-1]:.6f}")
+        print(f"      Maximum separation: {np.max(separations):.6f}")
+        print(f"      Minimum separation: {np.min(separations):.6f}")
+        print(f"      Average separation: {np.mean(separations):.6f}")
+        if len(separations) > 1:
+            separation_change = separations[-1] - separations[0]
+            print(f"      Total change: {separation_change:.6f}")
+            print(f"      Relative change: {(separation_change/initial_separation)*100:.2f}%")
+
 def load_r_field_data(filepath):
     """Load R-field data and reshape to 3D grid - optimized version"""
     try:
-        # Use numpy for faster loading instead of pandas
-        data = np.loadtxt(filepath)
+        # Use numpy for faster loading, skip header row
+        data = np.loadtxt(filepath, skiprows=1)
         r_fields = {}
         
         # Assuming columns are in order: R1nt, R2nt, R3nt
@@ -197,7 +295,7 @@ def load_r_field_data(filepath):
     except Exception as e:
         # Fallback to pandas if numpy fails
         try:
-            data = pd.read_csv(filepath, sep=' ')
+            data = pd.read_csv(filepath, sep=None, engine='python')  # Auto-detect separator
             r_fields = {}
             
             for col in ['R1nt', 'R2nt', 'R3nt']:
@@ -208,7 +306,7 @@ def load_r_field_data(filepath):
             
             return r_fields
         except Exception as e2:
-            print(f"Error loading {filepath}: {e2}")
+            print(f"Error loading {filepath}: numpy error: {e}, pandas error: {e2}")
             return None
 
 def save_and_close_plot(save_path, message):
@@ -566,7 +664,7 @@ if __name__ == "__main__":
     import matplotlib
     matplotlib.use('Agg')
     
-    total_steps = 4  # Reduced from 5 since we combined steps 4 and 5
+    total_steps = 5  # Increased to include monopole separation analysis
     
     print_progress(1, total_steps, "Initializing analysis...")
     print(f"Looking for files in: {DATA_DIR}")
@@ -581,19 +679,24 @@ if __name__ == "__main__":
     # Find files
     energy_files = find_energy_files()
     r_values_files = find_r_values_files()
+    monopole_tracking_files = find_monopole_tracking_files()
     
     print(f"Found {len(energy_files)} energy files")
     print(f"Found {len(r_values_files)} R-values files")
+    print(f"Found {len(monopole_tracking_files)} monopole tracking files")
     
-    if not energy_files and not r_values_files:
+    if not energy_files and not r_values_files and not monopole_tracking_files:
         print("ERROR: No data files found!")
         exit()
     
     print_progress(3, total_steps, "Analyzing energy evolution...")
     plot_energy_vs_time(energy_files)
     
+    print_progress(4, total_steps, "Analyzing monopole separation...")
+    plot_monopole_separation(monopole_tracking_files)
+    
     if r_values_files:
-        print_progress(4, total_steps, "Creating field plots and GIF animation...")
+        print_progress(5, total_steps, "Creating field plots and GIF animation...")
         analyze_and_create_all_outputs(r_values_files)  # Single function does everything
     else:
         print("Skipping R-field analysis (no R-values files found)")
