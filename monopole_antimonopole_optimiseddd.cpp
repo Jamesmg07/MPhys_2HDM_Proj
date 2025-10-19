@@ -35,12 +35,14 @@ const int nt = (nx * dx / (2 * dt));
 
 const int seed = 73;
 
-const string outTag = "_nx" + to_string(nx) + "_nt" + to_string(nt) + "_seed" + to_string(seed) + "_monopole";
 
+const double gamma_mult = 1;
 // Monopole/Antimonopole Configuration Parameters
-const double gamma_param = (1 * pi); // Phase difference parameter
+const double gamma_param = (gamma_mult * pi); // Phase difference parameter
 const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from centre as a fraction of box size
 // * nz;  in z direction 
+
+
 
 // Monopole Position Parameters (in grid coordinates)
 const double monopole1_x_offset = 0.0;     // Offset from center in x
@@ -55,7 +57,7 @@ const double monopole2_z_offset = -1 * (offset_from_centre * nz);   // Offset fr
 const double monopole_grid_spacing = 0.01; // Radial grid spacing for SOR_Fields.txt interpolation
 const double monopole_prefactor = pow(2, -1.5); // Field normalization factor (v_sm / sqrt(2))
 
-
+const string outTag = "gamma=" + to_string(gamma_mult) + "pi_nx=" + to_string(nx) + "_sep=" + to_string(2*offset_from_centre*nz) + "_nt=" + to_string(nt) + "_seed=" + to_string(seed) + "_monopole" ;
 
 // 2HDM Z_2 Symmetric Potential Set-Up:
  
@@ -134,20 +136,6 @@ int main(int argc, char** argv) {
     const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
 
-    // Create gamma-dependent file tag
-    string gamma_str;
-    if (gamma_param == 0) {
-        gamma_str = "gamma=0";
-    } else if (abs(gamma_param - pi/3) < 1e-10) {
-        gamma_str = "gamma=pi_3";
-    } else if (abs(gamma_param - 2*pi/3) < 1e-10) {
-        gamma_str = "gamma=2pi_3";
-    } else if (abs(gamma_param - pi) < 1e-10) {
-        gamma_str = "gamma=pi";
-    } else {
-        // For arbitrary gamma values, format as decimal
-        gamma_str = "gamma=" + to_string(gamma_param/pi).substr(0,5) + "pi";
-    }
 
     // Initialize MPI
 
@@ -281,16 +269,16 @@ int main(int argc, char** argv) {
     string icPath = out_path + "ic.csv";
     ifstream ic(icPath.c_str());
 
-    string finalFieldPath = out_path + "vortices_gif_finalFields" + gamma_str + outTag + ".csv";
+    string finalFieldPath = out_path + "vortices_gif_finalFields" +  outTag + ".csv";
     ofstream finalFields(finalFieldPath.c_str());
     finalFields << fixed << setprecision(6); // Add this line
 
 
-    string valsPerLoopPath = out_path + "energy_" + gamma_str + outTag + ".csv";
+    string valsPerLoopPath = out_path + "energy_" +  outTag + ".csv";
     ofstream valsPerLoop(valsPerLoopPath.c_str());
     valsPerLoop << fixed << setprecision(6); // Add this line
 
-    string monopoleNumberPath = out_path + "2m_monopoleNumber" + gamma_str + outTag + ".csv";
+    string monopoleNumberPath = out_path + "2m_monopoleNumber" +  outTag + ".csv";
     ofstream monopoleNumber(monopoleNumberPath.c_str());
     monopoleNumber << fixed << setprecision(6); // Add this line
 
@@ -793,8 +781,8 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             
-            string test_kValuesPath = out_path + "test_m_am_kValues" + gamma_str + outTag + ".csv";
-            string test_gValuesPath = out_path + "test_m_am_gValues" + gamma_str + outTag + ".csv";
+            string test_kValuesPath = out_path + "test_m_am_kValues" +  outTag + ".csv";
+            string test_gValuesPath = out_path + "test_m_am_gValues" +  outTag + ".csv";
             
             ofstream test_kValuesFile(test_kValuesPath.c_str());
             ofstream test_gValuesFile(test_gValuesPath.c_str());
@@ -855,8 +843,8 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             // Create files for fields and R values
-            string test_fieldsPath = out_path + "test_m_am_fieldValues" + gamma_str + outTag + ".csv";
-            string test_rValuesPath = out_path + "test_m_am_RValues" + gamma_str + outTag + ".csv";
+            string test_fieldsPath = out_path + "test_m_am_fieldValues" +  outTag + ".csv";
+            string test_rValuesPath = out_path + "test_m_am_RValues" +  outTag + ".csv";
             
             ofstream test_fieldsFile(test_fieldsPath.c_str());
             ofstream test_rValuesFile(test_rValuesPath.c_str());
@@ -1550,7 +1538,7 @@ int main(int argc, char** argv) {
 
             if (rank == 0) {
                 // Create files for fields and R values
-                string rValuesPath = out_path + "R_values_" + gamma_str + "_timestep=" + to_string(TimeStep) + outTag + ".csv";
+                string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
                 
                 ofstream rValuesFile(rValuesPath.c_str());
 
@@ -1598,7 +1586,7 @@ int main(int argc, char** argv) {
                 if (ic_type == "monopole") {
                     
                     // Create monopole tracking file if this is the first save
-                    string monopoleTrackingPath = out_path + "monopole_tracking_" + gamma_str + outTag + ".csv";
+                    string monopoleTrackingPath = out_path + "monopole_tracking_" +  outTag + ".csv";
                     ofstream monopoleFile;
                     
                     if (TimeStep == 0) {
