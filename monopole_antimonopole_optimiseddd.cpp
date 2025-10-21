@@ -472,6 +472,8 @@ int main(int argc, char** argv) {
             double y_1 = ( ((i+dataStart)/nz)%ny - y1 )*dy;
             double z_1 = ( (i+dataStart)%nz - z1 )*dz;
 
+            //Boost points
+
             double r_1 = pow(x_1*x_1 + y_1*y_1 + z_1*z_1, 0.5); // Calculate r_pos
             double r_pos_1 = r_1 / monopole_grid_spacing; //Position of r in the smaller grid
             int r_c_1 = static_cast<int>(round(r_pos_1)); 
@@ -492,11 +494,13 @@ int main(int argc, char** argv) {
             double k_1 = 0.0;
             double k_1_p = 0.0;
             
+            // Case where the grid goes out of bounds of the solution fine grid
             if (r_p_1 >= (k.size())) {
 
                 k_1 = 1.0;
                 k_1_p = 0.0;
-
+            
+            // Case where the closest grid point is at the origin
             } else if (r_c_1 == 0) {
 
                 // Values of k and k+ at r_value
@@ -504,7 +508,8 @@ int main(int argc, char** argv) {
                         + ((r_p_1 - r_pos_1) * k[r_c_1]));
                 k_1_p = ((( - (r_c_1 - r_pos_1) * k_p[r_p_1] )) 
                         + ((r_p_1 - r_pos_1) * k_p[r_c_1]));
-
+            
+            // Middle points
             } else {
 
                 k_1 = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k[r_p_1]) / 2) 
@@ -745,7 +750,7 @@ int main(int argc, char** argv) {
             fields[6][i] = phi[3].real();  
             fields[7][i] = phi[3].imag();
 
-
+            // Sets the second time step equal to the first
             fields[0][totSize + i] = fields[0][i];
             fields[1][totSize + i] = fields[1][i];
             fields[2][totSize + i] = fields[2][i];

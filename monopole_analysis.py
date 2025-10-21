@@ -147,10 +147,10 @@ def plot_energy_vs_time(energy_files):
         # Calculate vacuum energy to subtract
         # Using physical volume: (nx-1)*dx * (ny-1)*dy * (nz-1)*dz for length-based calculation
         # or nx*dx * ny*dy * nz*dz for grid-based calculation
-        vacuum_energy = (1/8) * ((nx-1) * dx)**3  # Using gridsize-1 as you suggested
+        vacuum_energy = (1/8) * ((nx-2) * dx)**3  # Using gridsize-1 as you suggested
         
         # Subtract vacuum energy from all values
-        energy_data_corrected = energy_data - vacuum_energy
+        energy_data_corrected = energy_data + vacuum_energy
         
         # Create time array
         timesteps = np.arange(len(energy_data_corrected))
