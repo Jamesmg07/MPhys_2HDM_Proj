@@ -531,8 +531,8 @@ int main(int argc, char** argv) {
 
                     cout << "Error: Index out of bounds at process " << rank 
                         << " with i=" << i << ", r_c_1=" << r_c_1 
-                        << ", r_p_1=" << r_p_1 << ", x_1=" << x_1 << ", y_1=" << y_1 
-                        << ", z_1=" << z_1 << ", r_1=" << r_1 << ", r_pos_1=" << r_pos_1 << endl;
+                        << ", r_p_1=" << r_p_1 << ", x_1=" << x_1_prime << ", y_1=" << y_1_prime 
+                        << ", z_1=" << z_1_prime << ", r_1=" << r_1 << ", r_pos_1=" << r_pos_1 << endl;
                     MPI_Abort(MPI_COMM_WORLD, 1);
                 }
 
@@ -593,8 +593,8 @@ int main(int argc, char** argv) {
 
                     cout << "Error: Index out of bounds at process " << rank 
                         << " with i=" << i << ", r_c_2=" << r_c_2 
-                        << ", r_p_2=" << r_p_2 << ", x_2=" << x_2 << ", y_2=" << y_2 
-                        << ", z_2=" << z_2 << ", r_2=" << r_2 << ", r_pos_2=" << r_pos_2 << endl;
+                        << ", r_p_2=" << r_p_2 << ", x_2=" << x_2_prime << ", y_2=" << y_2_prime
+                        << ", z_2=" << z_2_prime << ", r_2=" << r_2 << ", r_pos_2=" << r_pos_2 << endl;
                     MPI_Abort(MPI_COMM_WORLD, 1);
                 }
 
@@ -637,7 +637,7 @@ int main(int argc, char** argv) {
                 complex<double> u_1[2][2];    // Define a 2x2 matrix of complex<double> numbers named u_1                       
                 complex<double> u_2[2][2];   // Define a 2x2 matrix of complex<double> numbers named u_2
 
-                if ( z_1 == r_1 ) {
+                if ( z_1_prime == r_1 ) {
 
                     u_1[0][0] = complex<double>(1.0, 0.0);  
                     u_1[0][1] = complex<double>(0.0, 0.0); 
@@ -649,8 +649,8 @@ int main(int argc, char** argv) {
                     u_2[1][0] = complex<double>(1.0, 0.0); 
                     u_2[1][1] = complex<double>(0.0, 0.0);
 
-                    
-                } else if ( z_2 == -r_2 ) {
+
+                } else if ( z_2_prime == -r_2 ) {
 
                     u_1[0][0] = complex<double>(0.0, 0.0);  
                     u_1[0][1] = complex<double>(-1.0, 0.0); 
@@ -663,7 +663,7 @@ int main(int argc, char** argv) {
                     u_2[1][1] = complex<double>(-1.0, 0.0);
                     
                             
-                } else if ( z_1 != r_1 and z_2 != -r_2 and z_2 == r_2) {
+                } else if ( z_1_prime!= r_1 and z_2_prime != -r_2 and z_2_prime== r_2) {
 
                     u_1[0][0] = complex<double>(0.0, 0.0);  
                     u_1[0][1] = complex<double>(-1.0, 0.0); 
@@ -680,21 +680,21 @@ int main(int argc, char** argv) {
 
                     double cos_1;    // cos(theta_1 / 2), cos(theta_2 / 2)
 
-                    cos_1 = pow(0.5 * (1 + (z_1 / r_1)), 0.5);  // cos(theta_1 / 2)
+                    cos_1 = pow(0.5 * (1 + (z_1_prime / r_1)), 0.5);  // cos(theta_1 / 2)
 
 
                     u_1[0][0] = complex<double>(cos_1, 0.0);  
-                    u_1[0][1] = complex<double>(- x_1 / (2 * r_1 * cos_1), y_1 / (2 * r_1 * cos_1)); 
-                    u_1[1][0] = complex<double>(x_1 / (2 * r_1 * cos_1), y_1 / (2 * r_1 * cos_1)); 
+                    u_1[0][1] = complex<double>(- x_1_prime / (2 * r_1 * cos_1), y_1_prime / (2 * r_1 * cos_1)); 
+                    u_1[1][0] = complex<double>(x_1_prime / (2 * r_1 * cos_1), y_1_prime / (2 * r_1 * cos_1)); 
                     u_1[1][1] = complex<double>(cos_1, 0.0);
 
                     double sin_2;
 
-                    sin_2 = pow(0.5 * (1 - (z_2 / r_2)), 0.5);
+                    sin_2 = pow(0.5 * (1 - (z_2_prime / r_2)), 0.5);
 
                     u_2[0][0] = complex<double>(- sin_2, 0.0);  
-                    u_2[0][1] = complex<double>(- x_2 / (2 * r_2 * sin_2), y_2 / (2 * r_2 * sin_2)); 
-                    u_2[1][0] = complex<double>(x_2 / (2 * r_2 * sin_2), y_2 / (2 * r_2 * sin_2)); 
+                    u_2[0][1] = complex<double>(- x_2_prime / (2 * r_2 * sin_2), y_2_prime / (2 * r_2 * sin_2)); 
+                    u_2[1][0] = complex<double>(x_2_prime / (2 * r_2 * sin_2), y_2_prime / (2 * r_2 * sin_2)); 
                     u_2[1][1] = complex<double>(- sin_2, 0.0);
 
                 }
