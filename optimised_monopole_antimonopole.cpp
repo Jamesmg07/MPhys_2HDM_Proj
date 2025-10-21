@@ -20,27 +20,39 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 64; // Grid Dimensions
-const long long int ny = 64;
-const long long int nz = 64; // Set nz = 1 for 2D.
+const long long int nx = 128; // Grid Dimensions
+const long long int ny = 128;
+const long long int nz = 128; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
 const double dy = 0.5;
 const double dz = 0.5;
-const double dt = 0.05; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
+const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = (nx * dx / (2 * dt));
 
 const int seed = 73;
 
-
 const double gamma_mult = 1;
 // Monopole/Antimonopole Configuration Parameters
-const double gamma_param = (gamma_mult * pi); // Phase difference parameter
+
 const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from centre as a fraction of box size
 // * nz;  in z direction 
+
+// Monopole Boost Parameters (add after monopole position parameters)
+const double monopole1_vx = 0.0;  // Velocity components for monopole 1 (in units of c)
+const double monopole1_vy = 0.0;
+const double monopole1_vz = 0.1;  // Example: 0.1c boost in z direction
+
+const double monopole2_vx = 0.0;  // Velocity components for monopole 2
+const double monopole2_vy = 0.0;
+const double monopole2_vz = -0.1; // Example: -0.1c boost in z direction (opposite)
+
+
+const double gamma_param = (gamma_mult * pi); // Phase difference parameter
+
 
 
 
@@ -411,6 +423,9 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             cout << "STEP 9a: Starting monopole initial conditions" << endl;
+            cout << "Monopole 1 boost: vx=" << monopole1_vx << ", vy=" << monopole1_vy << ", vz=" << monopole1_vz << endl;
+            cout << "Monopole 2 boost: vx=" << monopole2_vx << ", vy=" << monopole2_vy << ", vz=" << monopole2_vz << endl;
+   
         }
 
         string fields_ic_data = inp_path + "SOR_Fields.txt";
@@ -457,311 +472,340 @@ int main(int argc, char** argv) {
             cout << "Debug: k size = " << k.size() << ", k_p size = " << k_p.size() << endl;
         }
 
-        vector<vector<double>> k_kp(4, vector<double>(2 * totSize, 0.0)); 
-        vector<vector<double>> g_gp(4, vector<double>(2 * totSize, 0.0));
+        // Calculate boost parameters for both monopoles
+        double v1_mag = sqrt(monopole1_vx*monopole1_vx + monopole1_vy*monopole1_vy + monopole1_vz*monopole1_vz);
+        double v2_mag = sqrt(monopole2_vx*monopole2_vx + monopole2_vy*monopole2_vy + monopole2_vz*monopole2_vz);
         
-        for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
+        double gamma1 = (v1_mag > 1e-10) ? 1.0/sqrt(1.0 - v1_mag*v1_mag) : 1.0;
+        double gamma2 = (v2_mag > 1e-10) ? 1.0/sqrt(1.0 - v2_mag*v2_mag) : 1.0;
 
-            if (rank == 0 && i == frontHaloSize) {
-                cout << "STEP 9d: Starting main monopole calculation loop" << endl;
-            }
+        // Unit vectors (avoid division by zero)
+        double v1_hat_x = (v1_mag > 1e-10) ? monopole1_vx / v1_mag : 0.0;
+        double v1_hat_y = (v1_mag > 1e-10) ? monopole1_vy / v1_mag : 0.0;
+        double v1_hat_z = (v1_mag > 1e-10) ? monopole1_vz / v1_mag : 0.0;
+        
+        double v2_hat_x = (v2_mag > 1e-10) ? monopole2_vx / v2_mag : 0.0;
+        double v2_hat_y = (v2_mag > 1e-10) ? monopole2_vy / v2_mag : 0.0;
+        double v2_hat_z = (v2_mag > 1e-10) ? monopole2_vz / v2_mag : 0.0;
 
-            //First monopole
+        if (rank == 0) {
+            cout << "Gamma factors: γ1=" << gamma1 << ", γ2=" << gamma2 << endl;
+            cout << "STEP 9c: Boost parameters calculated" << endl;
+        }
 
-            double x_1 = ( (i+dataStart)/(ny*nz) - x1 )*dx;
-            double y_1 = ( ((i+dataStart)/nz)%ny - y1 )*dy;
-            double z_1 = ( (i+dataStart)%nz - z1 )*dz;
-
-            //Boost points
-
-            double r_1 = pow(x_1*x_1 + y_1*y_1 + z_1*z_1, 0.5); // Calculate r_pos
-            double r_pos_1 = r_1 / monopole_grid_spacing; //Position of r in the smaller grid
-            int r_c_1 = static_cast<int>(round(r_pos_1)); 
-            int r_m_1 = r_c_1 - 1;
-            int r_p_1 = r_c_1 + 1;
-
-            // Debugging output to check bounds and values
-            if (r_c_1 < 0) {
-
-                cout << "Error: Index out of bounds at process " << rank 
-                    << " with i=" << i << ", r_c_1=" << r_c_1 
-                    << ", r_p_1=" << r_p_1 << ", x_1=" << x_1 << ", y_1=" << y_1 
-                    << ", z_1=" << z_1 << ", r_1=" << r_1 << ", r_pos_1=" << r_pos_1 << endl;
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-
-            // Declare k_r and k_p_r here so they are accessible later
-            double k_1 = 0.0;
-            double k_1_p = 0.0;
+        // Initialize k and k_p arrays
+        vector<vector<double>> k_kp(4, vector<double>(2 * totSize, 0.0));
+        vector<vector<double>> g_gp(4, vector<double>(2 * totSize, 0.0));
             
-            // Case where the grid goes out of bounds of the solution fine grid
-            if (r_p_1 >= (k.size())) {
+        
+        // Calculate fields for t=0 and t=dt
+        for (int time_step = 0; time_step < 2; time_step++) {
+            double t_lab = time_step * dt;  // t=0 for first step, t=dt for second step
+        
+            for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
 
-                k_1 = 1.0;
-                k_1_p = 0.0;
-            
-            // Case where the closest grid point is at the origin
-            } else if (r_c_1 == 0) {
+                if (rank == 0 && i == frontHaloSize) {
+                    cout << "STEP 9d: Starting main monopole calculation loop" << endl;
+                }
 
-                // Values of k and k+ at r_value
-                k_1 = ((( - (r_c_1 - r_pos_1) * k[r_p_1] )) 
-                        + ((r_p_1 - r_pos_1) * k[r_c_1]));
-                k_1_p = ((( - (r_c_1 - r_pos_1) * k_p[r_p_1] )) 
-                        + ((r_p_1 - r_pos_1) * k_p[r_c_1]));
-            
-            // Middle points
-            } else {
+                //First monopole
+                double x_1 = ( (i+dataStart)/(ny*nz) - x1 )*dx;
+                double y_1 = ( ((i+dataStart)/nz)%ny - y1 )*dy;
+                double z_1 = ( (i+dataStart)%nz - z1 )*dz;
 
-                k_1 = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k[r_p_1]) / 2) 
-                    - (((r_m_1 - r_pos_1) * (r_p_1 - r_pos_1) * k[r_c_1])) 
-                    + (((r_c_1 - r_pos_1) * (r_p_1 - r_pos_1) * k[r_m_1]) / 2));
-                k_1_p = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k_p[r_p_1]) / 2) 
-                        - (((r_m_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_p[r_c_1])) 
-                        + (((r_c_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_p[r_m_1]) / 2));
+                //Boost points
+                double v_dot_r1 = x_1*v1_hat_x + y_1*v1_hat_y + z_1*v1_hat_z;
 
-            }
+                double x_1_prime = x_1 + (gamma1-1)*(v_dot_r1)*v1_hat_x + gamma1*t_lab*v1_mag*v1_hat_x;
+                double y_1_prime = y_1 + (gamma1-1)*(v_dot_r1)*v1_hat_y + gamma1*t_lab*v1_mag*v1_hat_y;
+                double z_1_prime = z_1 + (gamma1-1)*(v_dot_r1)*v1_hat_z + gamma1*t_lab*v1_mag*v1_hat_z;
 
+                double r_1 = sqrt(x_1_prime*x_1_prime + y_1_prime*y_1_prime + z_1_prime*z_1_prime); // Calculate r_pos
+                double r_pos_1 = r_1 / monopole_grid_spacing; //Position of r in the smaller grid
+                int r_c_1 = static_cast<int>(round(r_pos_1)); 
+                int r_m_1 = r_c_1 - 1;
+                int r_p_1 = r_c_1 + 1;
 
-            //Second monopole
+                // Debugging output to check bounds and values
+                if (r_c_1 < 0) {
 
-            double x_2 = ( (i+dataStart)/(ny*nz) - x2 )*dx;
-            double y_2 = ( ((i+dataStart)/nz)%ny - y2 )*dy;
-            double z_2 = ( (i+dataStart)%nz - z2 )*dz;
+                    cout << "Error: Index out of bounds at process " << rank 
+                        << " with i=" << i << ", r_c_1=" << r_c_1 
+                        << ", r_p_1=" << r_p_1 << ", x_1=" << x_1 << ", y_1=" << y_1 
+                        << ", z_1=" << z_1 << ", r_1=" << r_1 << ", r_pos_1=" << r_pos_1 << endl;
+                    MPI_Abort(MPI_COMM_WORLD, 1);
+                }
 
-            double r_2 = pow(x_2*x_2 + y_2*y_2 + z_2*z_2, 0.5); // Calculate r_pos
-            double r_pos_2 = r_2 / monopole_grid_spacing; //Position of r in the smaller grid
-            int r_c_2 = static_cast<int>(round(r_pos_2)); 
-            int r_m_2 = r_c_2 - 1;
-            int r_p_2 = r_c_2 + 1;
-
-            // Debugging output to check bounds and values
-            if (r_c_2 < 0) {
-
-                cout << "Error: Index out of bounds at process " << rank 
-                    << " with i=" << i << ", r_c_2=" << r_c_2 
-                    << ", r_p_2=" << r_p_2 << ", x_2=" << x_2 << ", y_2=" << y_2 
-                    << ", z_2=" << z_2 << ", r_2=" << r_2 << ", r_pos_2=" << r_pos_2 << endl;
-                MPI_Abort(MPI_COMM_WORLD, 1);
-            }
-
-
-            // Declare k_r and k_p_r here so they are accessible later
-            double k_2 = 0.0;
-            double k_2_p = 0.0;
-            
-             // Values of k and k+ at r_value
-
-            if (r_p_2 >= (k.size())) {
-
-                k_2 = 1.0;
-                k_2_p = 0.0;
-
-            } else if (r_c_2 == 0) {
-
-                // Values of k and k+ at r_value
-                k_2 = ((( - (r_c_2 - r_pos_2) * k[r_p_2] )) 
-                        + ((r_p_2 - r_pos_2) * k[r_c_2]));
-                k_2_p = ((( - (r_c_2 - r_pos_2) * k_p[r_p_2] )) 
-                        + ((r_p_2 - r_pos_2) * k_p[r_c_2]));
-
-            } else {
-                k_2 = ((((r_m_2 - r_pos_2) * (r_c_2 - r_pos_2) * k[r_p_2]) / 2) 
-                    - (((r_m_2 - r_pos_2) * (r_p_2 - r_pos_2) * k[r_c_2])) 
-                    + (((r_c_2 - r_pos_2) * (r_p_2 - r_pos_2) * k[r_m_2]) / 2));
-                k_2_p = ((((r_m_2 - r_pos_2) * (r_c_2 - r_pos_2) * k_p[r_p_2]) / 2) 
-                        - (((r_m_2 - r_pos_2) * (r_p_2 - r_pos_2) * k_p[r_c_2])) 
-                        + (((r_c_2 - r_pos_2) * (r_p_2 - r_pos_2) * k_p[r_m_2]) / 2));
-
-            }
-
-            double g_1_p = (k_1 - k_1_p);
-            double g_1 = (k_1 + k_1_p);
-            double g_2_p = (k_2 - k_2_p);
-            double g_2 = (k_2 + k_2_p);
-
-
-            complex<double> u_1[2][2];    // Define a 2x2 matrix of complex<double> numbers named u_1                       
-            complex<double> u_2[2][2];   // Define a 2x2 matrix of complex<double> numbers named u_2
-
-            if ( z_1 == r_1 ) {
-
-                u_1[0][0] = complex<double>(1.0, 0.0);  
-                u_1[0][1] = complex<double>(0.0, 0.0); 
-                u_1[1][0] = complex<double>(0.0, 0.0); 
-                u_1[1][1] = complex<double>(1.0, 0.0);
-
-                u_2[0][0] = complex<double>(0.0, 0.0);  
-                u_2[0][1] = complex<double>(-1.0, 0.0); 
-                u_2[1][0] = complex<double>(1.0, 0.0); 
-                u_2[1][1] = complex<double>(0.0, 0.0);
-
+                // Declare k_r and k_p_r here so they are accessible later
+                double k_1 = 0.0;
+                double k_1_p = 0.0;
                 
-            } else if ( z_2 == -r_2 ) {
+                // Case where the grid goes out of bounds of the solution fine grid
+                if (r_p_1 >= (k.size())) {
 
-                u_1[0][0] = complex<double>(0.0, 0.0);  
-                u_1[0][1] = complex<double>(-1.0, 0.0); 
-                u_1[1][0] = complex<double>(1.0, 0.0); 
-                u_1[1][1] = complex<double>(0.0, 0.0);
-
-                u_2[0][0] = complex<double>(-1.0, 0.0);  
-                u_2[0][1] = complex<double>(0.0, 0.0); 
-                u_2[1][0] = complex<double>(0.0, 0.0); 
-                u_2[1][1] = complex<double>(-1.0, 0.0);
+                    k_1 = 1.0;
+                    k_1_p = 0.0;
                 
-                        
-            } else if ( z_1 != r_1 and z_2 != -r_2 and z_2 == r_2) {
+                // Case where the closest grid point is at the origin
+                } else if (r_c_1 == 0) {
 
-                u_1[0][0] = complex<double>(0.0, 0.0);  
-                u_1[0][1] = complex<double>(-1.0, 0.0); 
-                u_1[1][0] = complex<double>(1.0, 0.0); 
-                u_1[1][1] = complex<double>(0.0, 0.0);
+                    // Values of k and k+ at r_value
+                    k_1 = ((( - (r_c_1 - r_pos_1) * k[r_p_1] )) 
+                            + ((r_p_1 - r_pos_1) * k[r_c_1]));
+                    k_1_p = ((( - (r_c_1 - r_pos_1) * k_p[r_p_1] )) 
+                            + ((r_p_1 - r_pos_1) * k_p[r_c_1]));
+                
+                // Middle points
+                } else {
 
-                u_2[0][0] = complex<double>(0.0, 0.0);  
-                u_2[0][1] = complex<double>(-1.0, 0.0); 
-                u_2[1][0] = complex<double>(1.0, 0.0); 
-                u_2[1][1] = complex<double>(0.0, 0.0);            
+                    k_1 = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k[r_p_1]) / 2) 
+                        - (((r_m_1 - r_pos_1) * (r_p_1 - r_pos_1) * k[r_c_1])) 
+                        + (((r_c_1 - r_pos_1) * (r_p_1 - r_pos_1) * k[r_m_1]) / 2));
+                    k_1_p = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k_p[r_p_1]) / 2) 
+                            - (((r_m_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_p[r_c_1])) 
+                            + (((r_c_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_p[r_m_1]) / 2));
 
-            } else {
-
-
-                double cos_1;    // cos(theta_1 / 2), cos(theta_2 / 2)
-
-                cos_1 = pow(0.5 * (1 + (z_1 / r_1)), 0.5);  // cos(theta_1 / 2)
-
-
-                u_1[0][0] = complex<double>(cos_1, 0.0);  
-                u_1[0][1] = complex<double>(- x_1 / (2 * r_1 * cos_1), y_1 / (2 * r_1 * cos_1)); 
-                u_1[1][0] = complex<double>(x_1 / (2 * r_1 * cos_1), y_1 / (2 * r_1 * cos_1)); 
-                u_1[1][1] = complex<double>(cos_1, 0.0);
-
-                double sin_2;
-
-                sin_2 = pow(0.5 * (1 - (z_2 / r_2)), 0.5);
-
-                u_2[0][0] = complex<double>(- sin_2, 0.0);  
-                u_2[0][1] = complex<double>(- x_2 / (2 * r_2 * sin_2), y_2 / (2 * r_2 * sin_2)); 
-                u_2[1][0] = complex<double>(x_2 / (2 * r_2 * sin_2), y_2 / (2 * r_2 * sin_2)); 
-                u_2[1][1] = complex<double>(- sin_2, 0.0);
-
-            }
-
-
-            // Define the T matrix
-            complex<double> T[2][2] = {
-                {exp(complex<double>(0, 0.5 * gamma_param)), complex<double>(0.0, 0.0)},
-                {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param))}
-            };
-
-            // Step 1: Compute C = T * u_2
-            complex<double> C[2][2];
-            for (int row = 0; row < 2; ++row) {
-                for (int col = 0; col < 2; ++col) {
-                    C[row][col] = complex<double>(0.0, 0.0);
-                    for (int index = 0; index < 2; ++index) {
-                        C[row][col] += T[row][index] * u_2[index][col];
-                    }
                 }
-            }
 
-            // Step 2: Compute A = u_1 * C
-            complex<double> A[2][2];
-            for (int row = 0; row < 2; ++row) {
-                for (int col = 0; col < 2; ++col) {
-                    A[row][col] = complex<double>(0.0, 0.0);
-                    for (int index = 0; index < 2; ++index) {
-                        A[row][col] += u_1[row][index] * C[index][col];
-                    }
+
+                //Second monopole
+                double x_2 = ( (i+dataStart)/(ny*nz) - x2 )*dx;
+                double y_2 = ( ((i+dataStart)/nz)%ny - y2 )*dy;
+                double z_2 = ( (i+dataStart)%nz - z2 )*dz;
+                
+                
+                //Boost points
+                double v_dot_r2 = x_2*v2_hat_x + y_2*v2_hat_y + z_2*v2_hat_z;
+
+                double x_2_prime = x_2 + (gamma2-1)*(v_dot_r2)*v2_hat_x + gamma2*t_lab*v2_mag*v2_hat_x;
+                double y_2_prime = y_2 + (gamma2-1)*(v_dot_r2)*v2_hat_y + gamma2*t_lab*v2_mag*v2_hat_y;
+                double z_2_prime = z_2 + (gamma2-1)*(v_dot_r2)*v2_hat_z + gamma2*t_lab*v2_mag*v2_hat_z;
+
+                double r_2 = sqrt(x_2_prime*x_2_prime + y_2_prime*y_2_prime + z_2_prime*z_2_prime); // Calculate r_pos
+
+                double r_pos_2 = r_2 / monopole_grid_spacing; //Position of r in the smaller grid
+                int r_c_2 = static_cast<int>(round(r_pos_2)); 
+                int r_m_2 = r_c_2 - 1;
+                int r_p_2 = r_c_2 + 1;
+
+                // Debugging output to check bounds and values
+                if (r_c_2 < 0) {
+
+                    cout << "Error: Index out of bounds at process " << rank 
+                        << " with i=" << i << ", r_c_2=" << r_c_2 
+                        << ", r_p_2=" << r_p_2 << ", x_2=" << x_2 << ", y_2=" << y_2 
+                        << ", z_2=" << z_2 << ", r_2=" << r_2 << ", r_pos_2=" << r_pos_2 << endl;
+                    MPI_Abort(MPI_COMM_WORLD, 1);
                 }
-            }
-                        
-                        
-            // Define matrix M
-            double sqrt2_inv = 1.0 / sqrt(2.0);
-            complex<double> M[2][2] = {
-                {sqrt2_inv, sqrt2_inv},
-                {-sqrt2_inv, sqrt2_inv}
-            };
 
-            // Compute the matrix product B = A * M
-            complex<double> B[2][2];
-            for (int row = 0; row < 2; ++row) {
-                for (int col = 0; col < 2; ++col) {
-                    B[row][col] = complex<double>(0.0, 0.0);
-                    for (int index = 0; index < 2; ++index) {
-                        B[row][col] += A[row][index] * M[index][col];
-                    }
+
+                // Declare k_r and k_p_r here so they are accessible later
+                double k_2 = 0.0;
+                double k_2_p = 0.0;
+                
+                // Values of k and k+ at r_value
+
+                if (r_p_2 >= (k.size())) {
+
+                    k_2 = 1.0;
+                    k_2_p = 0.0;
+
+                } else if (r_c_2 == 0) {
+
+                    // Values of k and k+ at r_value
+                    k_2 = ((( - (r_c_2 - r_pos_2) * k[r_p_2] )) 
+                            + ((r_p_2 - r_pos_2) * k[r_c_2]));
+                    k_2_p = ((( - (r_c_2 - r_pos_2) * k_p[r_p_2] )) 
+                            + ((r_p_2 - r_pos_2) * k_p[r_c_2]));
+
+                } else {
+                    k_2 = ((((r_m_2 - r_pos_2) * (r_c_2 - r_pos_2) * k[r_p_2]) / 2) 
+                        - (((r_m_2 - r_pos_2) * (r_p_2 - r_pos_2) * k[r_c_2])) 
+                        + (((r_c_2 - r_pos_2) * (r_p_2 - r_pos_2) * k[r_m_2]) / 2));
+                    k_2_p = ((((r_m_2 - r_pos_2) * (r_c_2 - r_pos_2) * k_p[r_p_2]) / 2) 
+                            - (((r_m_2 - r_pos_2) * (r_p_2 - r_pos_2) * k_p[r_c_2])) 
+                            + (((r_c_2 - r_pos_2) * (r_p_2 - r_pos_2) * k_p[r_m_2]) / 2));
+
                 }
-            }
 
-            complex<double> TP[4][4];
+                double g_1_p = (k_1 - k_1_p);
+                double g_1 = (k_1 + k_1_p);
+                double g_2_p = (k_2 - k_2_p);
+                double g_2 = (k_2 + k_2_p);
 
-            // Compute the tensor product B ⊗ B
-            for (int r = 0; r < 2; ++r) {
-                for (int c = 0; c < 2; ++c) {
-                    for (int x = 0; x < 2; ++x) {
-                        for (int y = 0; y < 2; ++y) {
-                            TP[2 * r + x][2 * c + y] = B[r][c] * B[x][y];
+
+                complex<double> u_1[2][2];    // Define a 2x2 matrix of complex<double> numbers named u_1                       
+                complex<double> u_2[2][2];   // Define a 2x2 matrix of complex<double> numbers named u_2
+
+                if ( z_1 == r_1 ) {
+
+                    u_1[0][0] = complex<double>(1.0, 0.0);  
+                    u_1[0][1] = complex<double>(0.0, 0.0); 
+                    u_1[1][0] = complex<double>(0.0, 0.0); 
+                    u_1[1][1] = complex<double>(1.0, 0.0);
+
+                    u_2[0][0] = complex<double>(0.0, 0.0);  
+                    u_2[0][1] = complex<double>(-1.0, 0.0); 
+                    u_2[1][0] = complex<double>(1.0, 0.0); 
+                    u_2[1][1] = complex<double>(0.0, 0.0);
+
+                    
+                } else if ( z_2 == -r_2 ) {
+
+                    u_1[0][0] = complex<double>(0.0, 0.0);  
+                    u_1[0][1] = complex<double>(-1.0, 0.0); 
+                    u_1[1][0] = complex<double>(1.0, 0.0); 
+                    u_1[1][1] = complex<double>(0.0, 0.0);
+
+                    u_2[0][0] = complex<double>(-1.0, 0.0);  
+                    u_2[0][1] = complex<double>(0.0, 0.0); 
+                    u_2[1][0] = complex<double>(0.0, 0.0); 
+                    u_2[1][1] = complex<double>(-1.0, 0.0);
+                    
+                            
+                } else if ( z_1 != r_1 and z_2 != -r_2 and z_2 == r_2) {
+
+                    u_1[0][0] = complex<double>(0.0, 0.0);  
+                    u_1[0][1] = complex<double>(-1.0, 0.0); 
+                    u_1[1][0] = complex<double>(1.0, 0.0); 
+                    u_1[1][1] = complex<double>(0.0, 0.0);
+
+                    u_2[0][0] = complex<double>(0.0, 0.0);  
+                    u_2[0][1] = complex<double>(-1.0, 0.0); 
+                    u_2[1][0] = complex<double>(1.0, 0.0); 
+                    u_2[1][1] = complex<double>(0.0, 0.0);            
+
+                } else {
+
+
+                    double cos_1;    // cos(theta_1 / 2), cos(theta_2 / 2)
+
+                    cos_1 = pow(0.5 * (1 + (z_1 / r_1)), 0.5);  // cos(theta_1 / 2)
+
+
+                    u_1[0][0] = complex<double>(cos_1, 0.0);  
+                    u_1[0][1] = complex<double>(- x_1 / (2 * r_1 * cos_1), y_1 / (2 * r_1 * cos_1)); 
+                    u_1[1][0] = complex<double>(x_1 / (2 * r_1 * cos_1), y_1 / (2 * r_1 * cos_1)); 
+                    u_1[1][1] = complex<double>(cos_1, 0.0);
+
+                    double sin_2;
+
+                    sin_2 = pow(0.5 * (1 - (z_2 / r_2)), 0.5);
+
+                    u_2[0][0] = complex<double>(- sin_2, 0.0);  
+                    u_2[0][1] = complex<double>(- x_2 / (2 * r_2 * sin_2), y_2 / (2 * r_2 * sin_2)); 
+                    u_2[1][0] = complex<double>(x_2 / (2 * r_2 * sin_2), y_2 / (2 * r_2 * sin_2)); 
+                    u_2[1][1] = complex<double>(- sin_2, 0.0);
+
+                }
+
+
+                // Define the T matrix
+                complex<double> T[2][2] = {
+                    {exp(complex<double>(0, 0.5 * gamma_param)), complex<double>(0.0, 0.0)},
+                    {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param))}
+                };
+
+                // Step 1: Compute C = T * u_2
+                complex<double> C[2][2];
+                for (int row = 0; row < 2; ++row) {
+                    for (int col = 0; col < 2; ++col) {
+                        C[row][col] = complex<double>(0.0, 0.0);
+                        for (int index = 0; index < 2; ++index) {
+                            C[row][col] += T[row][index] * u_2[index][col];
                         }
                     }
                 }
-            }
 
-            
-
-            // Multiply the tensor product by the prefactor
-            for (int r = 0; r < 4; ++r) {
-                for (int c = 0; c < 4; ++c) {
-                    TP[r][c] *= monopole_prefactor;
+                // Step 2: Compute A = u_1 * C
+                complex<double> A[2][2];
+                for (int row = 0; row < 2; ++row) {
+                    for (int col = 0; col < 2; ++col) {
+                        A[row][col] = complex<double>(0.0, 0.0);
+                        for (int index = 0; index < 2; ++index) {
+                            A[row][col] += u_1[row][index] * C[index][col];
+                        }
+                    }
                 }
-            }
+                            
+                            
+                // Define matrix M
+                double sqrt2_inv = 1.0 / sqrt(2.0);
+                complex<double> M[2][2] = {
+                    {sqrt2_inv, sqrt2_inv},
+                    {-sqrt2_inv, sqrt2_inv}
+                };
 
-            // Define the real 4-component vector
-            double phi_both[4] = { (- g_1_p * g_2_p), (g_1 * g_2), (- g_1 * g_2), (g_1_p * g_2_p) };
-
-            // Populate k_kp and g_gp
-            k_kp[0][i] = k_1;
-            k_kp[1][i] = k_1_p;
-            k_kp[2][i] = k_2;
-            k_kp[3][i] = k_2_p;
-
-            g_gp[0][i] = phi_both[0];
-            g_gp[1][i] = phi_both[1];
-            g_gp[2][i] = phi_both[2];
-            g_gp[3][i] = phi_both[3];
-
-            // Define the complex vector phi
-            complex<double> phi[4];
-
-            // Initialize the phi vector components
-            for (int r = 0; r < 4; ++r) {
-                phi[r] = complex<double>(0.0, 0.0);
-                for (int c = 0; c < 4; ++c) {
-                    phi[r] += TP[r][c] * phi_both[c];
+                // Compute the matrix product B = A * M
+                complex<double> B[2][2];
+                for (int row = 0; row < 2; ++row) {
+                    for (int col = 0; col < 2; ++col) {
+                        B[row][col] = complex<double>(0.0, 0.0);
+                        for (int index = 0; index < 2; ++index) {
+                            B[row][col] += A[row][index] * M[index][col];
+                        }
+                    }
                 }
+
+                complex<double> TP[4][4];
+
+                // Compute the tensor product B ⊗ B
+                for (int r = 0; r < 2; ++r) {
+                    for (int c = 0; c < 2; ++c) {
+                        for (int x = 0; x < 2; ++x) {
+                            for (int y = 0; y < 2; ++y) {
+                                TP[2 * r + x][2 * c + y] = B[r][c] * B[x][y];
+                            }
+                        }
+                    }
+                }
+
+                
+
+                // Multiply the tensor product by the prefactor
+                for (int r = 0; r < 4; ++r) {
+                    for (int c = 0; c < 4; ++c) {
+                        TP[r][c] *= monopole_prefactor;
+                    }
+                }
+
+                // Define the real 4-component vector
+                double phi_both[4] = { (- g_1_p * g_2_p), (g_1 * g_2), (- g_1 * g_2), (g_1_p * g_2_p) };
+
+                // Populate k_kp and g_gp
+                k_kp[0][i] = k_1;
+                k_kp[1][i] = k_1_p;
+                k_kp[2][i] = k_2;
+                k_kp[3][i] = k_2_p;
+
+                g_gp[0][i] = phi_both[0];
+                g_gp[1][i] = phi_both[1];
+                g_gp[2][i] = phi_both[2];
+                g_gp[3][i] = phi_both[3];
+
+                // Define the complex vector phi
+                complex<double> phi[4];
+
+                // Initialize the phi vector components
+                for (int r = 0; r < 4; ++r) {
+                    phi[r] = complex<double>(0.0, 0.0);
+                    for (int c = 0; c < 4; ++c) {
+                        phi[r] += TP[r][c] * phi_both[c];
+                    }
+                }
+
+                // Assign the real and imaginary parts of the phi vector to fields
+                fields[0][i+totSize*time_step] = phi[0].real();  
+                fields[1][i+totSize*time_step] = phi[0].imag();  
+                fields[2][i+totSize*time_step] = phi[1].real();  
+                fields[3][i+totSize*time_step] = phi[1].imag();  
+                fields[4][i+totSize*time_step] = phi[2].real();  
+                fields[5][i+totSize*time_step] = phi[2].imag();  
+                fields[6][i+totSize*time_step] = phi[3].real();  
+                fields[7][i+totSize*time_step] = phi[3].imag();
+
             }
-
-            // Assign the real and imaginary parts of the phi vector to fields
-            fields[0][i] = phi[0].real();  
-            fields[1][i] = phi[0].imag();  
-            fields[2][i] = phi[1].real();  
-            fields[3][i] = phi[1].imag();  
-            fields[4][i] = phi[2].real();  
-            fields[5][i] = phi[2].imag();  
-            fields[6][i] = phi[3].real();  
-            fields[7][i] = phi[3].imag();
-
-            // Sets the second time step equal to the first
-            fields[0][totSize + i] = fields[0][i];
-            fields[1][totSize + i] = fields[1][i];
-            fields[2][totSize + i] = fields[2][i];
-            fields[3][totSize + i] = fields[3][i];
-            fields[4][totSize + i] = fields[4][i];
-            fields[5][totSize + i] = fields[5][i];
-            fields[6][totSize + i] = fields[6][i];
-            fields[7][totSize + i] = fields[7][i];
-
         }
-
         if (rank == 0) {
             cout << "STEP 9e: Main monopole calculation loop completed" << endl;
         }
