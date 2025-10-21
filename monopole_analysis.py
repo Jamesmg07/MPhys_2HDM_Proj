@@ -13,7 +13,8 @@ nx, ny, nz = 128,128,128  # Grid dimensions
 dx, dy, dz = 0.5, 0.5, 0.5
 dt = 0.1  # Simulation timestep
 nPos = nx * ny * nz
-nt = int((nx * dx) / (2 * dt))  
+nt = int((nx * dx) / (2 * dt))
+gamma_string = 0.495
 
 def get_monopole_positions():
     """Calculate monopole positions from C++ parameters"""
@@ -409,12 +410,12 @@ def setup_slice_plot(ax, slice_data, vmin, vmax, arrow_scale, global_arrow_max, 
     if slice_type == 'xz':
         ax.set_xlabel('x position')
         ax.set_ylabel('z position')
-        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}pi')
         vector_label = 'Field magnitude |R1,R3|'
     elif slice_type == 'xy':
         ax.set_xlabel('x position')
         ax.set_ylabel('y position')
-        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_str}pi')
         vector_label = 'Field magnitude |R1,R2|'
     
     ax.set_xlim(coord1[0], coord1[-1])
@@ -440,7 +441,7 @@ def create_individual_plot(slice_data, timestep, vmin, vmax, global_arrow_max, s
     cbar2.set_label(vector_label)
     
     # Save and close with appropriate filename
-    filename = f'{slice_type}_monopole_field_t{timestep}.png'
+    filename = f'γ = {gamma_string}pi_{slice_type}_monopole_field_t{timestep}.png'
     save_and_close_plot(OUTPUT_DIR / filename, f"    Saved: {filename}")
 
 def analyze_and_create_all_outputs(r_values_files):
@@ -591,7 +592,7 @@ def analyze_and_create_all_outputs(r_values_files):
                                      interval=200, blit=True, repeat=True)
 
     gif_path_xz = OUTPUT_DIR / 'monopole_field_evolution_xz_slice.gif'
-    print(f"    Saving XZ GIF to: {gif_path_xz}")
+    print(f"    Saving XZ GIF to: {gamma_string}_{gif_path_xz}")
 
     try:
         anim_xz.save(gif_path_xz, writer='pillow', fps=8, dpi=100)
@@ -640,7 +641,7 @@ def analyze_and_create_all_outputs(r_values_files):
                                      interval=200, blit=True, repeat=True)
 
     gif_path_xy = OUTPUT_DIR / 'monopole_field_evolution_xy_slice.gif'
-    print(f"    Saving XY GIF to: {gif_path_xy}")
+    print(f"    Saving XY GIF to: {gamma_string}_{gif_path_xy}")
 
     try:
         anim_xy.save(gif_path_xy, writer='pillow', fps=8, dpi=100)
