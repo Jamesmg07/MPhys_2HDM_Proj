@@ -15,11 +15,13 @@ dt = 0.1  # Simulation timestep
 nPos = nx * ny * nz
 nt = int((nx * dx) / (2 * dt))
 gamma_string = 0.495
+n_samples = 10
+offset_from_centre = 0.25
 
 def get_monopole_positions():
     """Calculate monopole positions from C++ parameters"""
     # From your C++ code:
-    offset_from_centre = 0.25
+    
     
     # Center positions - should be integer grid indices
     center_x = (nx - 1) // 2  # 127 for 256³ grid
@@ -84,12 +86,31 @@ def find_energy_files():
     files = list(DATA_DIR.glob(f"energy_gamma=*pi_nx={nx}_*.csv"))
     return files
 
-def find_r_values_files():
-    """Find all R-values files from the simulation"""
-    # Updated pattern to match new C++ naming: R_values__timestep=X_gamma=X.Xpi_nx64_sep32_nt1280_seed73_monopole.csv
-    files = list(DATA_DIR.glob(f"R_values__timestep=*gamma=*pi_nx={nx}_*.csv"))
-    files.sort(key=extract_timestep)
-    return files
+def find_r_values_files_efficient(n_samples):
+    """Find R-values files and immediately select a subset for efficiency"""
+    # Get all matching files (this is the unavoidable part)
+    pattern = f"R_values__timestep=*gamma=*pi_nx={nx}_*.csv"
+    all_files = list(DATA_DIR.glob(pattern))
+    
+    if len(all_files) == 0:
+        print(f"  No R-values files found matching pattern: {pattern}")
+        return []
+    
+    # Sort by timestep (required for proper selection)
+    all_files.sort(key=extract_timestep)
+    
+    print(f"  Found {len(all_files)} total R-values files")
+    
+    # Select subset immediately
+    if len(all_files) <= n_samples:
+        print(f"  Using all {len(all_files)} files (requested {n_samples})")
+        return all_files
+    else:
+        # Select evenly spaced files
+        indices = np.linspace(0, len(all_files)-1, n_samples, dtype=int)
+        selected_files = [all_files[i] for i in indices]
+        print(f"  Selected {len(selected_files)} evenly spaced files from {len(all_files)} total")
+        return selected_files
 
 def find_monopole_tracking_files():
     """Find monopole tracking files from the simulation"""
@@ -444,22 +465,15 @@ def create_individual_plot(slice_data, timestep, vmin, vmax, global_arrow_max, s
     filename = f'γ = {gamma_string}pi_{slice_type}_monopole_field_t{timestep}.png'
     save_and_close_plot(OUTPUT_DIR / filename, f"    Saved: {filename}")
 
-def analyze_and_create_all_outputs(r_values_files):
-    """Single function that creates both individual plots and GIF - no duplication of work"""
+def analyze_and_create_all_outputs(selected_files):
+    """Create both individual plots and GIF - now receives pre-selected files"""
     print(f"\nAnalyzing field data and creating all outputs...")
     
-    # Always use exactly 10 intervals
-    n_intervals = 10
-    
-    if len(r_values_files) < n_intervals:
-        print(f"  Only {len(r_values_files)} files available, using all of them")
-        selected_files = r_values_files
-    else:
-        # Select exactly 10 evenly spaced files
-        indices = np.linspace(0, len(r_values_files)-1, n_intervals, dtype=int)
-        selected_files = [r_values_files[i] for i in indices]
-        print(f"  Using {len(selected_files)} evenly spaced timesteps out of {len(r_values_files)} total")
+    print(f"  Using {len(selected_files)} pre-selected timesteps")
 
+    # Remove the file selection logic since files are already selected
+    # selected_files is now passed in directly
+    
     # SINGLE PASS: Load all data and calculate everything once for both slice types
     all_slice_data_xz = []
     all_slice_data_xy = []
@@ -677,13 +691,13 @@ if __name__ == "__main__":
     
     print_progress(2, total_steps, "Searching for data files...")
     
-    # Find files
+    # Find files - use efficient version for R-values
     energy_files = find_energy_files()
-    r_values_files = find_r_values_files()
+    r_values_files = find_r_values_files_efficient(n_samples)  # Select 10 files immediately
     monopole_tracking_files = find_monopole_tracking_files()
     
     print(f"Found {len(energy_files)} energy files")
-    print(f"Found {len(r_values_files)} R-values files")
+    print(f"Selected {len(r_values_files)} R-values files for analysis")
     print(f"Found {len(monopole_tracking_files)} monopole tracking files")
     
     if not energy_files and not r_values_files and not monopole_tracking_files:
@@ -698,7 +712,7 @@ if __name__ == "__main__":
     
     if r_values_files:
         print_progress(5, total_steps, "Creating field plots and GIF animation...")
-        analyze_and_create_all_outputs(r_values_files)  # Single function does everything
+        analyze_and_create_all_outputs(r_values_files)  # Pass pre-selected files
     else:
         print("Skipping R-field analysis (no R-values files found)")
     
