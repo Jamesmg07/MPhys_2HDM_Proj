@@ -299,6 +299,47 @@ int main(int argc, char** argv) {
         cout << "STEP 7: Output files created" << endl;
     }
 
+    // Create simulation parameters file for Python analysis
+    if (rank == 0) {
+        string paramPath = out_path + "simulation_parameters_" + outTag + ".txt";
+        ofstream paramFile(paramPath.c_str());
+        
+        paramFile << "# Simulation Parameters for Python Analysis" << endl;
+        paramFile << "# Generated automatically by C++ simulation" << endl;
+        paramFile << "nx=" << nx << endl;
+        paramFile << "ny=" << ny << endl;
+        paramFile << "nz=" << nz << endl;
+        paramFile << "dx=" << dx << endl;
+        paramFile << "dy=" << dy << endl;
+        paramFile << "dz=" << dz << endl;
+        paramFile << "dt=" << dt << endl;
+        paramFile << "nt=" << nt << endl;
+        paramFile << "gamma_mult=" << gamma_mult << endl;
+        paramFile << "offset_from_centre=" << offset_from_centre << endl;
+        paramFile << "monopole1_vx=" << monopole1_vx << endl;
+        paramFile << "monopole1_vy=" << monopole1_vy << endl;
+        paramFile << "monopole1_vz=" << monopole1_vz << endl;
+        paramFile << "monopole2_vx=" << monopole2_vx << endl;
+        paramFile << "monopole2_vy=" << monopole2_vy << endl;
+        paramFile << "monopole2_vz=" << monopole2_vz << endl;
+        paramFile << "seed=" << seed << endl;
+        paramFile << "ic_type=" << ic_type << endl;
+        paramFile << "saveFreq=" << saveFreq << endl;
+        paramFile << "outTag=" << outTag << endl;
+        
+        // Calculate and store monopole positions for Python
+        paramFile << "# Calculated monopole positions (grid indices)" << endl;
+        paramFile << "monopole1_x=" << x1 << endl;
+        paramFile << "monopole1_y=" << y1 << endl;
+        paramFile << "monopole1_z=" << z1 << endl;
+        paramFile << "monopole2_x=" << x2 << endl;
+        paramFile << "monopole2_y=" << y2 << endl;
+        paramFile << "monopole2_z=" << z2 << endl;
+        
+        paramFile.close();
+        cout << "STEP 7a: Simulation parameters file created: " << paramPath << endl;
+    }
+
     //MONOPOLE POSITIONS - calculated from offsets
     // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
     x1 = 0.5 * (nx - 1) + monopole1_x_offset;
