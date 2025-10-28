@@ -42,7 +42,7 @@ def load_simulation_parameters(data_dir):
                         value = value.strip()
                         
                         # Convert to appropriate type
-                        if key in ['nx', 'ny', 'nz', 'nt', 'seed', 'saveFreq']:
+                        if key in ['nx', 'ny', 'nz', 'nt', 'seed', 'sep_SaveFreq', 'R_saveFreq']:
                             params[key] = int(value)
                         elif key in ['dx', 'dy', 'dz', 'dt', 'gamma_mult', 'offset_from_centre',
                                    'monopole1_vx', 'monopole1_vy', 'monopole1_vz',

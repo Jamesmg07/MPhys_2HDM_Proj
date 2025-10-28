@@ -32,6 +32,7 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = (nx * dx / (2 * dt));
+const int R_saveFreq = 10;
 
 const int seed = 73;
 
@@ -68,6 +69,9 @@ const double monopole2_z_offset = -1 * (offset_from_centre * nz);   // Offset fr
 // Monopole Field Profile Parameters
 const double monopole_grid_spacing = 0.01; // Radial grid spacing for SOR_Fields.txt interpolation
 const double monopole_prefactor = pow(2, -1.5); // Field normalization factor (v_sm / sqrt(2))
+
+const int sep_saveFreq = 2;
+
 
 const string outTag = "gamma=" + to_string(gamma_mult) + "pi_nx=" + to_string(nx) + "_sep=" + to_string(2*offset_from_centre*nz) + "_nt=" + to_string(nt) + "_seed=" + to_string(seed) + "_monopole" ;
 
@@ -143,7 +147,7 @@ int main(int argc, char** argv) {
     const bool finalOut = true;
     const bool monopoleDetect = false;
     const bool makeGif = true;
-    const int saveFreq = 2;
+
     const string inp_path = "./"; // Input Directory Location - relative path
     const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
@@ -324,7 +328,8 @@ int main(int argc, char** argv) {
         paramFile << "monopole2_vz=" << monopole2_vz << endl;
         paramFile << "seed=" << seed << endl;
         paramFile << "ic_type=" << ic_type << endl;
-        paramFile << "saveFreq=" << saveFreq << endl;
+        paramFile << "sep_saveFreq=" << sep_saveFreq << endl;
+        paramFile << "R_saveFreq=" << R_saveFreq << endl;
         paramFile << "outTag=" << outTag << endl;
         
         // Calculate and store monopole positions for Python
@@ -1624,18 +1629,21 @@ int main(int argc, char** argv) {
         */
 
 
-        if (makeGif and TimeStep % saveFreq == 0) {
+        if (makeGif and TimeStep % sep_saveFreq == 0) {
 
             if (rank == 0) {
                 // Create files for fields and R values
-                string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
-                
-                ofstream rValuesFile(rValuesPath.c_str());
+                if (TimeStep % R_saveFreq == 0) {
+                        
+                    string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
+                    
+                    ofstream rValuesFile(rValuesPath.c_str());
 
-                // Headers for fields and R values
+                    // Headers for fields and R values
 
-                rValuesFile << "R1nt,R2nt,R3nt\n";
-                rValuesFile << fixed << setprecision(6);
+                    rValuesFile << "R1nt,R2nt,R3nt\n";
+                    rValuesFile << fixed << setprecision(6);
+                }
                 
                 vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
 
@@ -1667,14 +1675,18 @@ int main(int argc, char** argv) {
                     R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
 
                     // Write R values to R values file, ensuring explicit output of 0.0
-                    rValuesFile << R1nt << "," << R2nt << "," << R3nt << "\n";
+                    if (TimeStep % R_saveFreq == 0) {
+                        rValuesFile << R1nt << "," << R2nt << "," << R3nt << "\n";  
+                    }
 
                     if (ic_type == "monopole") {
                     monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
                     }
                 }
 
-                rValuesFile.close();
+                if (TimeStep % R_saveFreq == 0) {
+                    rValuesFile.close();
+                }
 
                                 // Monopole tracking for monopole initial conditions
                 if (ic_type == "monopole") {

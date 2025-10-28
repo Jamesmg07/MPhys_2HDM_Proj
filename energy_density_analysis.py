@@ -6,8 +6,8 @@ from pathlib import Path
 import time
 
 # Simulation parameters
-DATA_DIR = Path("/share/centaurus_nas/mkza/")
-OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Plots/EnergyDensity/")
+DATA_DIR = Path("/share/centaurus_nas/mkza/Week_4/energy_density")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/energy_05")
 nx, ny, nz = 256, 256, 256  # Grid dimensions from C++ code
 dx, dy, dz = 0.5, 0.5, 0.5  # Grid spacings
 gamma_mult = 0.5  # From C++ code
@@ -29,6 +29,10 @@ def find_separation_energy_file():
         # Try alternative pattern without exact match
         files = list(DATA_DIR.glob("separation_vs_energy_*.csv"))
     
+    print(f"  Found {len(files)} separation vs energy files")
+    if files:
+        print(f"    Using: {files[0].name}")
+    
     return files[0] if files else None
 
 def find_energy_density_files():
@@ -37,12 +41,38 @@ def find_energy_density_files():
     pattern = f"energy_density_gamma={gamma_mult}pi_nx={nx}_sep=*_seed={seed}_monopole.csv"
     files = list(DATA_DIR.glob(pattern))
     
+    # If no files found with exact parameters, try broader search
+    if not files:
+        print(f"  No files found with exact pattern, trying broader search...")
+        files = list(DATA_DIR.glob("energy_density_*_monopole.csv"))
+    
     # Sort by separation value
     def extract_separation(filename):
         match = re.search(r'sep=([0-9.]+)', filename.name)
         return float(match.group(1)) if match else 0.0
     
     files.sort(key=extract_separation)
+    
+    # Print detailed information about found files
+    print(f"  Found {len(files)} energy density files:")
+    if files:
+        separations = []
+        for file in files:
+            separation = extract_separation(file)
+            separations.append(separation)
+            print(f"    - {file.name} (separation = {separation})")
+        
+        if separations:
+            sep_array = np.array(separations)
+            print(f"  Separation range: {np.min(sep_array):.3f} to {np.max(sep_array):.3f}")
+            if len(separations) > 1:
+                intervals = np.diff(sep_array)
+                print(f"  Separation intervals: {intervals}")
+                if len(set(intervals.round(3))) == 1:
+                    print(f"  Regular interval: {intervals[0]:.3f}")
+                else:
+                    print(f"  Irregular intervals detected")
+    
     return files
 
 def load_separation_energy_data(filepath):
@@ -110,15 +140,21 @@ def plot_energy_vs_separation():
     # Extract parameters from filename or use defaults
     gamma_val, grid_size, _, seed_val = extract_parameters_from_filename(sep_energy_file.name)
     
+    # Calculate vacuum energy to subtract (for total energy)
+    vacuum_energy = (1/8) * ((grid_size-2) * dx)**3
+    
+    # Apply vacuum energy correction to total energy
+    energy_corrected = data['total_energy'] + vacuum_energy
+    
     plt.figure(figsize=(12, 8))
     
-    # Plot energy vs separation
-    plt.plot(data['separation'], data['total_energy'], 'bo-', linewidth=2, markersize=8,
-             label='Total Energy')
+    # Plot energy vs separation with vacuum correction
+    plt.plot(data['separation'], energy_corrected, 'bo-', linewidth=2, markersize=8,
+             label='Total Energy (vacuum subtracted)')
     
     plt.xlabel('Monopole-Antimonopole Separation', fontsize=12)
     plt.ylabel('Total Energy', fontsize=12)
-    plt.title(f'Total Energy vs Monopole-Antimonopole Separation\n'
+    plt.title(f'Total Energy vs Monopole-Antimonopole Separation (Vacuum Corrected)\n'
               f'γ = {gamma_val}π, Grid: {grid_size}³, Seed: {seed_val}', fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=11)
@@ -127,7 +163,8 @@ def plot_energy_vs_separation():
     info_text = (f'Grid: {grid_size}³\n'
                 f'γ = {gamma_val}π\n'
                 f'Seed: {seed_val}\n'
-                f'Data points: {len(data)}')
+                f'Data points: {len(data)}\n'
+                f'Vacuum energy subtracted: {vacuum_energy:.6f}')
     plt.text(0.02, 0.98, info_text, transform=plt.gca().transAxes, 
             fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
@@ -139,9 +176,10 @@ def plot_energy_vs_separation():
     
     # Print statistics
     print(f"  Energy vs separation statistics:")
+    print(f"    Vacuum energy subtracted: {vacuum_energy:.6f}")
     print(f"    Separation range: {data['separation'].min():.3f} to {data['separation'].max():.3f}")
-    print(f"    Energy range: {data['total_energy'].min():.6f} to {data['total_energy'].max():.6f}")
-    print(f"    Energy change: {data['total_energy'].iloc[-1] - data['total_energy'].iloc[0]:.6f}")
+    print(f"    Energy range (corrected): {energy_corrected.min():.6f} to {energy_corrected.max():.6f}")
+    print(f"    Energy change (corrected): {energy_corrected.iloc[-1] - energy_corrected.iloc[0]:.6f}")
 
 def save_and_close_plot(save_path, message):
     """Helper function to save and close plots"""
@@ -172,6 +210,9 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
         ylabel = 'z position'
         extent = [0, (grid_size-1)*dx, 0, (grid_size-1)*dz]
         slice_info = f'y={slice_index*dy:.1f}'
+        # Boundary coordinates for the slice (second from edge)
+        boundary_x_coords = [1*dx, (grid_size-2)*dx]  # x boundaries
+        boundary_z_coords = [1*dz, (grid_size-2)*dz]  # z boundaries
     elif slice_type == 'xy':
         # x-y plane at fixed z
         energy_slice = energy_3d[:, :, slice_index]
@@ -179,6 +220,9 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
         ylabel = 'y position'
         extent = [0, (grid_size-1)*dx, 0, (grid_size-1)*dy]
         slice_info = f'z={slice_index*dz:.1f}'
+        # Boundary coordinates for the slice (second from edge)
+        boundary_x_coords = [1*dx, (grid_size-2)*dx]  # x boundaries
+        boundary_z_coords = [1*dy, (grid_size-2)*dy]  # y boundaries (renamed for consistency)
     elif slice_type == 'yz':
         # y-z plane at fixed x
         energy_slice = energy_3d[slice_index, :, :]
@@ -186,6 +230,9 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
         ylabel = 'z position'
         extent = [0, (grid_size-1)*dy, 0, (grid_size-1)*dz]
         slice_info = f'x={slice_index*dx:.1f}'
+        # Boundary coordinates for the slice (second from edge)
+        boundary_x_coords = [1*dy, (grid_size-2)*dy]  # y boundaries (using x_coords variable name)
+        boundary_z_coords = [1*dz, (grid_size-2)*dz]  # z boundaries
     else:
         raise ValueError(f"Unknown slice_type: {slice_type}")
     
@@ -195,6 +242,22 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
     # Plot energy density slice
     im = plt.imshow(energy_slice.T, origin='lower', extent=extent, 
                    aspect='auto', cmap='plasma', interpolation='bilinear')
+    
+    # Add boundary box showing grid points 1 from edge (where vacuum energy applies)
+    # Draw thin rectangular boundary lines
+    boundary_linewidth = 1.5
+    boundary_color = 'white'
+    boundary_alpha = 0.8
+    
+    # Draw the boundary rectangle
+    plt.axvline(x=boundary_x_coords[0], color=boundary_color, linewidth=boundary_linewidth, 
+               alpha=boundary_alpha, linestyle='-', label='Vacuum boundary (grid-2)')
+    plt.axvline(x=boundary_x_coords[1], color=boundary_color, linewidth=boundary_linewidth, 
+               alpha=boundary_alpha, linestyle='-')
+    plt.axhline(y=boundary_z_coords[0], color=boundary_color, linewidth=boundary_linewidth, 
+               alpha=boundary_alpha, linestyle='-')
+    plt.axhline(y=boundary_z_coords[1], color=boundary_color, linewidth=boundary_linewidth, 
+               alpha=boundary_alpha, linestyle='-')
     
     plt.xlabel(xlabel, fontsize=12)
     plt.ylabel(ylabel, fontsize=12)
@@ -206,14 +269,35 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
     cbar = plt.colorbar(im)
     cbar.set_label('Energy Density', fontsize=11)
     
-    # Add statistics text box
+    # Add statistics text box with boundary information
+    # Calculate energy at boundary points for verification
+    if slice_type == 'xz':
+        boundary_energies = [
+            energy_slice[1, 1], energy_slice[1, -2], 
+            energy_slice[-2, 1], energy_slice[-2, -2]
+        ]
+    elif slice_type == 'xy':
+        boundary_energies = [
+            energy_slice[1, 1], energy_slice[1, -2], 
+            energy_slice[-2, 1], energy_slice[-2, -2]
+        ]
+    elif slice_type == 'yz':
+        boundary_energies = [
+            energy_slice[1, 1], energy_slice[1, -2], 
+            energy_slice[-2, 1], energy_slice[-2, -2]
+        ]
+    
     stats_text = (f'Min: {np.min(energy_slice):.2e}\n'
                  f'Max: {np.max(energy_slice):.2e}\n'
                  f'Mean: {np.mean(energy_slice):.2e}\n'
-                 f'Std: {np.std(energy_slice):.2e}')
+                 f'Std: {np.std(energy_slice):.2e}\n'
+                 f'Boundary corners: {np.mean(boundary_energies):.2e}')
     plt.text(0.02, 0.98, stats_text, transform=plt.gca().transAxes, 
             fontsize=9, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
+    # Add legend for boundary lines
+    plt.legend(loc='upper right', fontsize=9)
     
     return energy_slice
 
@@ -226,15 +310,19 @@ def plot_energy_density_snapshots():
         print("  No energy density files found!")
         return
     
-    print(f"  Found {len(energy_files)} energy density files")
+    print(f"\nProcessing {len(energy_files)} energy density files:")
+    
+    successful_plots = 0
+    failed_plots = 0
     
     for i, file in enumerate(energy_files):
-        print(f"  [{i+1}/{len(energy_files)}] Processing: {file.name}")
+        print(f"\n  [{i+1}/{len(energy_files)}] Processing: {file.name}")
         
         # Load data
         data = load_energy_density_data(file)
         if data is None:
-            print(f"    Skipping due to load error")
+            print(f"    [ERROR] Skipping due to load error")
+            failed_plots += 1
             continue
         
         # Extract parameters
@@ -246,6 +334,7 @@ def plot_energy_density_snapshots():
         slice_types = ['xz', 'xy', 'yz']
         slice_indices = [grid_size//2, grid_size//2, grid_size//2]  # Middle slices
         
+        file_successful = True
         for slice_type, slice_idx in zip(slice_types, slice_indices):
             try:
                 energy_slice = create_energy_density_slice_plot(
@@ -258,10 +347,24 @@ def plot_energy_density_snapshots():
                     filename = (f'energy_density_{slice_type}_slice_sep{separation}_'
                               f'gamma{gamma_val}pi_nx{grid_size}_seed{seed_val}.png')
                     save_path = OUTPUT_DIR / filename
-                    save_and_close_plot(save_path, f"    Saved: {filename}")
+                    save_and_close_plot(save_path, f"    [SUCCESS] Saved: {filename}")
+                else:
+                    file_successful = False
                 
             except Exception as e:
-                print(f"    Error creating {slice_type} plot: {e}")
+                print(f"    [ERROR] Error creating {slice_type} plot: {e}")
+                file_successful = False
+        
+        if file_successful:
+            successful_plots += 1
+        else:
+            failed_plots += 1
+    
+    print(f"\n  Summary:")
+    print(f"    Successfully processed: {successful_plots} files")
+    if failed_plots > 0:
+        print(f"    Failed to process: {failed_plots} files")
+    print(f"    Total plots created: {successful_plots * 3}")  # 3 slice types per file
 
 def create_3d_energy_summary():
     """Create a summary plot showing energy density statistics for all separations"""
@@ -276,10 +379,20 @@ def create_3d_energy_summary():
     max_energies = []
     mean_energies = []
     total_energies = []
+    processed_files = 0
     
-    for file in energy_files:
+    print(f"  Processing {len(energy_files)} files for summary analysis:")
+    
+    # Calculate vacuum energy correction (for total energy calculations only)
+    vacuum_energy = (1/8) * ((nx-2) * dx)**3
+    print(f"  Vacuum energy correction (for total energy): {vacuum_energy:.6f}")
+    
+    for i, file in enumerate(energy_files):
+        print(f"    [{i+1}/{len(energy_files)}] Analyzing: {file.name}")
+        
         data = load_energy_density_data(file)
         if data is None:
+            print(f"      [ERROR] Skipped due to load error")
             continue
         
         gamma_val, grid_size, separation, seed_val = extract_parameters_from_filename(file.name)
@@ -287,16 +400,23 @@ def create_3d_energy_summary():
         energy_values = data['energy_density'].values
         
         separations.append(separation)
+        # Local energy density statistics - no vacuum correction
         max_energies.append(np.max(energy_values))
         mean_energies.append(np.mean(energy_values))
         
-        # Calculate total energy (integrate over volume)
-        total_energy = np.sum(energy_values) * dx * dy * dz
-        total_energies.append(total_energy)
+        # Total energy calculation - apply vacuum correction
+        total_energy_raw = np.sum(energy_values) * dx * dy * dz
+        total_energy_corrected = total_energy_raw + vacuum_energy
+        total_energies.append(total_energy_corrected)
+        processed_files += 1
+        
+        print(f"      [SUCCESS] Separation={separation}, Total energy (corrected)={total_energy_corrected:.2e}")
     
     if not separations:
-        print("  No valid data found!")
+        print("  [ERROR] No valid data found for summary!")
         return
+    
+    print(f"\n  Successfully processed {processed_files}/{len(energy_files)} files for summary")
     
     # Sort by separation
     sort_idx = np.argsort(separations)
@@ -308,28 +428,28 @@ def create_3d_energy_summary():
     # Create summary plot
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
     
-    # Maximum energy density
+    # Maximum energy density (local, no vacuum correction)
     ax1.plot(separations, max_energies, 'ro-', linewidth=2, markersize=6)
     ax1.set_xlabel('Separation')
     ax1.set_ylabel('Maximum Energy Density')
     ax1.set_title('Maximum Energy Density vs Separation')
     ax1.grid(True, alpha=0.3)
     
-    # Mean energy density
+    # Mean energy density (local, no vacuum correction)
     ax2.plot(separations, mean_energies, 'go-', linewidth=2, markersize=6)
     ax2.set_xlabel('Separation')
     ax2.set_ylabel('Mean Energy Density')
     ax2.set_title('Mean Energy Density vs Separation')
     ax2.grid(True, alpha=0.3)
     
-    # Total energy
+    # Total energy (vacuum corrected)
     ax3.plot(separations, total_energies, 'bo-', linewidth=2, markersize=6)
     ax3.set_xlabel('Separation')
-    ax3.set_ylabel('Total Energy')
-    ax3.set_title('Total Energy vs Separation')
+    ax3.set_ylabel('Total Energy (Vacuum Corrected)')
+    ax3.set_title('Total Energy vs Separation (Vacuum Subtracted)')
     ax3.grid(True, alpha=0.3)
     
-    # Energy density ratio (max/mean)
+    # Energy density ratio (max/mean, no vacuum correction needed)
     energy_ratio = max_energies / mean_energies
     ax4.plot(separations, energy_ratio, 'mo-', linewidth=2, markersize=6)
     ax4.set_xlabel('Separation')
@@ -337,19 +457,20 @@ def create_3d_energy_summary():
     ax4.set_title('Energy Density Concentration vs Separation')
     ax4.grid(True, alpha=0.3)
     
-    plt.suptitle(f'Energy Density Analysis Summary\n'
-                f'γ = {gamma_val}π, Grid: {grid_size}³, Seed: {seed_val}', 
+    plt.suptitle(f'Energy Density Analysis Summary - {processed_files} data points\n'
+                f'γ = {gamma_val}π, Grid: {grid_size}³, Seed: {seed_val}, Vacuum Energy: {vacuum_energy:.6f}', 
                 fontsize=16)
     
     # Save summary plot
     filename = f'energy_density_summary_gamma{gamma_val}pi_nx{grid_size}_seed{seed_val}.png'
     save_path = OUTPUT_DIR / filename
-    save_and_close_plot(save_path, f"  Saved: {filename}")
+    save_and_close_plot(save_path, f"  [SUCCESS] Saved: {filename}")
     
-    print(f"  Summary statistics for {len(separations)} separations:")
+    print(f"\n  Summary statistics for {len(separations)} separations:")
+    print(f"    Vacuum energy correction applied to total energy: {vacuum_energy:.6f}")
     print(f"    Separation range: {separations[0]:.3f} to {separations[-1]:.3f}")
     print(f"    Max energy density range: {np.min(max_energies):.2e} to {np.max(max_energies):.2e}")
-    print(f"    Total energy range: {np.min(total_energies):.2e} to {np.max(total_energies):.2e}")
+    print(f"    Total energy range (corrected): {np.min(total_energies):.2e} to {np.max(total_energies):.2e}")
 
 # Main analysis code
 if __name__ == "__main__":
@@ -370,6 +491,15 @@ if __name__ == "__main__":
     
     if not DATA_DIR.exists():
         print(f"ERROR: Data directory {DATA_DIR} does not exist!")
+        exit()
+    
+    # Check what files are available before starting
+    print(f"\nScanning directory for available files...")
+    energy_files = find_energy_density_files()
+    sep_energy_file = find_separation_energy_file()
+    
+    if not energy_files and not sep_energy_file:
+        print("ERROR: No relevant data files found! Check the directory and parameters.")
         exit()
     
     print_progress(2, total_steps, "Plotting energy vs separation...")
