@@ -14,15 +14,15 @@ const double pi = 4.0 * atan(1.0);
 
 //Simulation paramaters (adjustable):
 const int nts = 1; // Number of time steps saved in data arrays
-const vector<double> separations = {0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4}; // Different separation values to test
+const vector<double> separations = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375, 0.4, 0.425}; // Different separation values to test
 
 // **NEW: Global output toggles (moved from main)**
-const bool save_energy_density = true;     // Save energy density at each xyz coordinate
+const bool save_energy_density = false;     // Save energy density at each xyz coordinate
 const bool save_separation_energy = true;  // Save total energy vs separation (1-to-1 mapping)
 
-const long long int nx = 128; // Grid Dimensions
-const long long int ny = 128;
-const long long int nz = 128; // Set nz = 1 for 2D.
+const long long int nx = 512; // Grid Dimensions
+const long long int ny = 512;
+const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
@@ -32,7 +32,7 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 const int nt = 1;
 const int seed = 73;
-const double gamma_mult = 0.0;
+const double gamma_mult = 0.5;
 
 // Monopole/Antimonopole Configuration Parameters
 
@@ -131,8 +131,8 @@ int main(int argc, char** argv) {
     const int nb_fields = 8; // Number of fields in simulation
     
     const int saveFreq = 2;
-    const string inp_path = "./share/centaurus_nas/mkza/"; // Input Directory Location - relative path
-    const string out_path = "/share/centaurus_nas/jmg_temp/energy_density_test/"; // Data Directory Location - fixed path
+    const string inp_path = "./"; // Input Directory Location - relative path
+    const string out_path = "/share/centaurus_nas/mkza/Week_5/energy_separation_512/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
 
 
@@ -1080,8 +1080,16 @@ int main(int argc, char** argv) {
     // **FIXED: Output energy density with proper separation handling**
     if (rank == 0) {
         
+
         // **NEW: Save separation vs energy (lightweight)**
         if (save_separation_energy) {
+
+            // Calculate total energy
+            double total_energy = 0.0;
+            for (j = 0; j < nPos; j++) {
+                total_energy += energy_density[j] * dx * dy * dz;
+            }
+            
             separationEnergyFile << current_separation << "," << total_energy << endl;
             cout << "Separation " << current_separation << " -> Total Energy: " << total_energy << endl;
         }
@@ -1105,11 +1113,6 @@ int main(int argc, char** argv) {
                 MPI_Recv(&allEnergyDensity[localCoreStart], localCoreSize, MPI_DOUBLE, j, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
             
-            // Calculate total energy
-            double total_energy = 0.0;
-            for (j = 0; j < nPos; j++) {
-                total_energy += allEnergyDensity[j] * dx * dy * dz;
-            }
             
         
         
