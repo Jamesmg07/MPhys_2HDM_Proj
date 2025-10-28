@@ -20,23 +20,23 @@ const double pi = 4.0 * atan(1.0);
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 128; // Grid Dimensions
-const long long int ny = 128;
-const long long int nz = 128; // Set nz = 1 for 2D.
+const long long int nx = 512; // Grid Dimensions
+const long long int ny = 512;
+const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
 const double dy = 0.5;
 const double dz = 0.5;
-const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
+const double dt = 0.01; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
-const int nt = (nx * dx / (2 * dt));
-const int R_saveFreq = 10;
+const int nt = 2000;
+const int R_savefiles = 10;
 
 const int seed = 73;
 
-const double gamma_mult = 1;
+const double gamma_mult = 0.5;
 // Monopole/Antimonopole Configuration Parameters
 
 const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from centre as a fraction of box size
@@ -54,7 +54,7 @@ const double monopole2_vz = -0.0; // Example: -0.1c boost in z direction (opposi
 
 const double gamma_param = (gamma_mult * pi); // Phase difference parameter
 
-
+const int R_saveFreq = int (2000/R_savefiles);
 
 
 // Monopole Position Parameters (in grid coordinates)
@@ -148,8 +148,8 @@ int main(int argc, char** argv) {
     const bool monopoleDetect = false;
     const bool makeGif = true;
 
-    const string inp_path = "./"; // Input Directory Location - relative path
-    const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
+    const string inp_path = "/share/centaurus_nas/jmg_temp/"; // Input Directory Location - relative path
+
     const int countRate = 20; // Increments for simulation progress status output.
 
 
@@ -283,67 +283,12 @@ int main(int argc, char** argv) {
     }
 
     //Creates Output Files if required
-    string icPath = out_path + "ic.csv";
-    ifstream ic(icPath.c_str());
-
-    string finalFieldPath = out_path + "vortices_gif_finalFields" +  outTag + ".csv";
-    ofstream finalFields(finalFieldPath.c_str());
-    finalFields << fixed << setprecision(6); // Add this line
-
-
-    string valsPerLoopPath = out_path + "energy_" +  outTag + ".csv";
-    ofstream valsPerLoop(valsPerLoopPath.c_str());
-    valsPerLoop << fixed << setprecision(6); // Add this line
-
-    string monopoleNumberPath = out_path + "2m_monopoleNumber" +  outTag + ".csv";
-    ofstream monopoleNumber(monopoleNumberPath.c_str());
-    monopoleNumber << fixed << setprecision(6); // Add this line
-
+    
     if (rank == 0) {
         cout << "STEP 7: Output files created" << endl;
     }
 
-    // Create simulation parameters file for Python analysis
-    if (rank == 0) {
-        string paramPath = out_path + "simulation_parameters_" + outTag + ".txt";
-        ofstream paramFile(paramPath.c_str());
-        
-        paramFile << "# Simulation Parameters for Python Analysis" << endl;
-        paramFile << "# Generated automatically by C++ simulation" << endl;
-        paramFile << "nx=" << nx << endl;
-        paramFile << "ny=" << ny << endl;
-        paramFile << "nz=" << nz << endl;
-        paramFile << "dx=" << dx << endl;
-        paramFile << "dy=" << dy << endl;
-        paramFile << "dz=" << dz << endl;
-        paramFile << "dt=" << dt << endl;
-        paramFile << "nt=" << nt << endl;
-        paramFile << "gamma_mult=" << gamma_mult << endl;
-        paramFile << "offset_from_centre=" << offset_from_centre << endl;
-        paramFile << "monopole1_vx=" << monopole1_vx << endl;
-        paramFile << "monopole1_vy=" << monopole1_vy << endl;
-        paramFile << "monopole1_vz=" << monopole1_vz << endl;
-        paramFile << "monopole2_vx=" << monopole2_vx << endl;
-        paramFile << "monopole2_vy=" << monopole2_vy << endl;
-        paramFile << "monopole2_vz=" << monopole2_vz << endl;
-        paramFile << "seed=" << seed << endl;
-        paramFile << "ic_type=" << ic_type << endl;
-        paramFile << "sep_saveFreq=" << sep_saveFreq << endl;
-        paramFile << "R_saveFreq=" << R_saveFreq << endl;
-        paramFile << "outTag=" << outTag << endl;
-        
-        // Calculate and store monopole positions for Python
-        paramFile << "# Calculated monopole positions (grid indices)" << endl;
-        paramFile << "monopole1_x=" << x1 << endl;
-        paramFile << "monopole1_y=" << y1 << endl;
-        paramFile << "monopole1_z=" << z1 << endl;
-        paramFile << "monopole2_x=" << x2 << endl;
-        paramFile << "monopole2_y=" << y2 << endl;
-        paramFile << "monopole2_z=" << z2 << endl;
-        
-        paramFile.close();
-        cout << "STEP 7a: Simulation parameters file created: " << paramPath << endl;
-    }
+    
 
     //MONOPOLE POSITIONS - calculated from offsets
     // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
@@ -876,18 +821,7 @@ int main(int argc, char** argv) {
         }
 
         if (rank == 0) {
-            
-            string test_kValuesPath = out_path + "test_m_am_kValues" +  outTag + ".csv";
-            string test_gValuesPath = out_path + "test_m_am_gValues" +  outTag + ".csv";
-            
-            ofstream test_kValuesFile(test_kValuesPath.c_str());
-            ofstream test_gValuesFile(test_gValuesPath.c_str());
-
-            test_kValuesFile << "k1,k1p,k2,k2p\n";
-            test_gValuesFile << "g1p_g2p_neg,g1_g2,g1_g2_neg,g1p_g2p\n";
-            test_kValuesFile << fixed << setprecision(6);
-            test_gValuesFile << fixed << setprecision(6);
-            
+                       
 
             vector<vector<double>> kOut(4, vector<double>(nPos, 0.0));
             vector<vector<double>> gOut(4, vector<double>(nPos, 0.0));
@@ -915,18 +849,9 @@ int main(int argc, char** argv) {
                 }
             }
 
-            // Output fields and R values to separate files
-            for (j = 0; j < nPos; j++) {
+            
 
-
-                // Write R values to R values file, ensuring explicit output of 0.0
-                test_kValuesFile << kOut[0][j] << "," << kOut[1][j] << "," << kOut[2][j] << "," << kOut[3][j] << "\n";
-                test_gValuesFile << gOut[0][j] << "," << gOut[1][j] << "," << gOut[2][j] << "," << gOut[3][j] << "\n";
-                
-            }
-
-            test_kValuesFile.close();
-            test_gValuesFile.close();
+    
         }
 
         else {
@@ -938,20 +863,7 @@ int main(int argc, char** argv) {
         }
 
         if (rank == 0) {
-            // Create files for fields and R values
-            string test_fieldsPath = out_path + "test_m_am_fieldValues" +  outTag + ".csv";
-            string test_rValuesPath = out_path + "test_m_am_RValues" +  outTag + ".csv";
-            
-            ofstream test_fieldsFile(test_fieldsPath.c_str());
-            ofstream test_rValuesFile(test_rValuesPath.c_str());
-
-            // Headers for fields and R values
-            test_fieldsFile << "field0,field1,field2,field3,field4,field5,field6,field7\n";
-            test_rValuesFile << "R0nt,R1nt,R2nt,R3nt\n";
-            // Set precision once
-            test_fieldsFile << fixed << setprecision(6);
-            test_rValuesFile << fixed << setprecision(6);
-
+           
             vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
             double R0nt, R1nt, R2nt, R3nt;
             int localCoreStartnt;
@@ -982,16 +894,10 @@ int main(int argc, char** argv) {
                 R0nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) + pow(fieldsOutnt[4][j], 2) + pow(fieldsOutnt[5][j], 2) + pow(fieldsOutnt[6][j], 2) + pow(fieldsOutnt[7][j], 2);
                 
 
-                // Write field values to fields file, ensuring explicit output of 0.0
-                test_fieldsFile << fieldsOutnt[0][j] << "," << fieldsOutnt[1][j] << "," << fieldsOutnt[2][j] << "," 
-                                << fieldsOutnt[3][j] << "," << fieldsOutnt[4][j] << "," << fieldsOutnt[5][j] << "," 
-                                << fieldsOutnt[6][j] << "," << fieldsOutnt[7][j] << "\n";
-                test_rValuesFile << R0nt << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
+        
             }
 
 
-            test_fieldsFile.close();
-            test_rValuesFile.close();
         }
 
         else {
@@ -1058,6 +964,13 @@ int main(int argc, char** argv) {
         if (rank == 0 && TimeStep == 0) {
             cout << "STEP 11: Starting main evolution loop" << endl;
         }
+
+        if (rank == 0 and TimeStep % countRate == 0) {
+        
+            cout << "\rTimestep " << TimeStep << " started.";
+        
+        }
+
 
         
 
@@ -1384,21 +1297,12 @@ int main(int argc, char** argv) {
 
         // Puts required headers on valsPerLoop output file:
 
-        if (TimeStep == 0 and rank == 0) {
-            if (calcEnergy and wallDetect) { valsPerLoop << "Energy,NDW,ADW_Simple,ADW_Full\n"; }
-            else {
-                if (calcEnergy) { valsPerLoop << "Energy\n"; }
-                if (wallDetect) { valsPerLoop << "NDW,ADW_Simple,ADW_Full\n"; }
-            }
-        }
         
 
 
-        if (TimeStep == 0 and rank == 0) {
-            if(monopoleDetect) { monopoleNumber << "NM\n"; } 
-            }
+       
 
-        
+
         // If calculating the energy, add it all up and output to text
         if (calcEnergy) {
 
@@ -1408,8 +1312,7 @@ int main(int argc, char** argv) {
 
                 for (i = 1; i < size; i++) { MPI_Recv(&totalLocalEnergy, 1, MPI_DOUBLE, i, 20, MPI_COMM_WORLD, MPI_STATUS_IGNORE);  energy += totalLocalEnergy; }
 
-                valsPerLoop << energy;
-                if (wallDetect) valsPerLoop << ",";
+                
 
             }
             else { MPI_Send(&totalLocalEnergy, 1, MPI_DOUBLE, 0, 20, MPI_COMM_WORLD); }
@@ -1439,9 +1342,6 @@ int main(int argc, char** argv) {
 
                 }
 
-                
-                if (calcEnergy) valsPerLoop << ",";
-                valsPerLoop << NDW << "," << ADW_simple << "," << ADW_full;
 
             }
             else {
@@ -1467,7 +1367,6 @@ int main(int argc, char** argv) {
 
                 }
 
-                monopoleNumber << NM;
 
             }
             else {
@@ -1478,10 +1377,6 @@ int main(int argc, char** argv) {
         }
 
         
-        if (rank == 0 and monopoleDetect) { monopoleNumber << "\n"; }
-
-
-        if (rank == 0 and (calcEnergy or wallDetect)) { valsPerLoop << "\n"; }
 
 
         // Update the core
@@ -1506,7 +1401,7 @@ int main(int argc, char** argv) {
             
             
             if (rank == 0) {
-                finalFields << "R0,R1,R2,R3,R4,R5,n1,n2,n3\n";
+     
 
                 double R0, R1, R2, R3, R4, R5;
                 double n1, n2, n3;
@@ -1545,7 +1440,6 @@ int main(int argc, char** argv) {
                     n3 = -1 * (pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) - pow(fieldsOut[2][i], 2) - pow(fieldsOut[3][i], 2) + pow(fieldsOut[4][i], 2) + pow(fieldsOut[5][i], 2) - pow(fieldsOut[6][i], 2) - pow(fieldsOut[7][i], 2));
 
 
-                    finalFields << R0 << "," << R1 << "," << R2 << "," << R3 << "," << R4 << "," << R5 << "," << n1 << "," << n2 << "," << n3 << "\n";
 
 
                 }
@@ -1632,24 +1526,7 @@ int main(int argc, char** argv) {
         if (makeGif and TimeStep % sep_saveFreq == 0) {
 
             if (rank == 0) {
-
-                ostream rValuesStreamPtr = nullptr;
-                std::ofstream rValuesFile;
-                std::ostringstream dummyStream;
-
-                if (TimeStep % R_saveFreq == 0) {
-                    string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
-                    rValuesFile.open(rValuesPath.c_str());
-                    rValuesFile << "R1nt,R2nt,R3nt\n";
-                    rValuesFile << fixed << setprecision(6);
-                    rValuesStreamPtr = &rValuesFile;
-                } else {
-                    dummyStream.str(""); // Clear any previous content
-                    rValuesStreamPtr = &dummyStream;
-                }
-                // Create files for fields and R values
-                
-                
+              
                 vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
 
 
@@ -1680,30 +1557,17 @@ int main(int argc, char** argv) {
                     R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
 
                     // Write R values to R values file, ensuring explicit output of 0.0
-                    (*rValuesStreamPtr) << R1nt << "," << R2nt << "," << R3nt << "\n";
-
+         
                     if (ic_type == "monopole") {
                     monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
                     }
                 }
 
-                if (TimeStep % R_saveFreq == 0) {
-                    rValuesFile.close();
-                }
 
                                 // Monopole tracking for monopole initial conditions
                 if (ic_type == "monopole") {
                     
-                    // Create monopole tracking file if this is the first save
-                    string monopoleTrackingPath = out_path + "monopole_tracking_" +  outTag + ".csv";
-                    ofstream monopoleFile;
-                    
-                    if (TimeStep == 0) {
-                        monopoleFile.open(monopoleTrackingPath.c_str());
-                        monopoleFile << "timestep,x1_center,y1_center,z1_center,x2_center,y2_center,z2_center" << endl;
-                    } else {
-                        monopoleFile.open(monopoleTrackingPath.c_str(), ios::app);
-                    }
+                 
                     
                     // Simple approach: find two lowest values with separation constraint
                     min1_value = 1e10;
@@ -1785,11 +1649,7 @@ int main(int argc, char** argv) {
                         z2_center = k2 * dz;
                     }
                     
-                    // Output to file (using -1 instead of NaN for compatibility)
-                    monopoleFile << TimeStep << "," << x1_center << "," << y1_center << "," << z1_center << "," 
-                                << x2_center << "," << y2_center << "," << z2_center << endl;
-                    
-                    monopoleFile.close();
+              
                 }
             }
 
@@ -1806,13 +1666,7 @@ int main(int argc, char** argv) {
 
 
 	
-	// Simulation Progress Output
-        if (rank == 0 and TimeStep % countRate == 0) {
-        
-            cout << "\rTimestep " << TimeStep << " completed.";
-        
-        }
-
+	
         // Barrier before going to the next timestep.
         MPI_Barrier(MPI_COMM_WORLD);
 
@@ -1841,15 +1695,7 @@ int main(int argc, char** argv) {
     // Deletes redundent outpur files if not used:
     if (rank == 0) {
 
-        if (!finalOut) {
-            finalFields.close();
-            remove(finalFieldPath.c_str());
-        }
-
-        if (!calcEnergy and !wallDetect) { 
-            valsPerLoop.close();
-            remove(valsPerLoopPath.c_str());
-        }
+     
         
         cout << "STEP 23: File cleanup completed" << endl;
     }

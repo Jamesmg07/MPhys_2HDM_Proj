@@ -6,8 +6,8 @@ from pathlib import Path
 import time
 
 # Simulation parameters
-DATA_DIR = Path("/share/centaurus_nas/mkza/Week_4/energy_density")
-OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/energy_05")
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/energy_density_test/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/energy_density_test/")
 nx, ny, nz = 256, 256, 256  # Grid dimensions from C++ code
 dx, dy, dz = 0.5, 0.5, 0.5  # Grid spacings
 gamma_mult = 0.5  # From C++ code
