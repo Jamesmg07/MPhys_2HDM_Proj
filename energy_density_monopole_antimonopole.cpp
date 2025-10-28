@@ -20,9 +20,9 @@ const vector<double> separations = {0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4}; // Di
 const bool save_energy_density = true;     // Save energy density at each xyz coordinate
 const bool save_separation_energy = true;  // Save total energy vs separation (1-to-1 mapping)
 
-const long long int nx = 256; // Grid Dimensions
-const long long int ny = 256;
-const long long int nz = 256; // Set nz = 1 for 2D.
+const long long int nx = 128; // Grid Dimensions
+const long long int ny = 128;
+const long long int nz = 128; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
@@ -32,18 +32,18 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 const int nt = 1;
 const int seed = 73;
-const double gamma_mult = 0.5;
+const double gamma_mult = 0.0;
 
 // Monopole/Antimonopole Configuration Parameters
 
 // Monopole Boost Parameters
 const double monopole1_vx = 0.0;  
 const double monopole1_vy = 0.0;
-const double monopole1_vz = 0.1;  
+const double monopole1_vz = 0.0;  
 
 const double monopole2_vx = 0.0;  
 const double monopole2_vy = 0.0;
-const double monopole2_vz = -0.1; 
+const double monopole2_vz = -0.0; 
 
 const double gamma_param = (gamma_mult * pi); 
 
@@ -131,8 +131,8 @@ int main(int argc, char** argv) {
     const int nb_fields = 8; // Number of fields in simulation
     
     const int saveFreq = 2;
-    const string inp_path = "./"; // Input Directory Location - relative path
-    const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
+    const string inp_path = "./share/centaurus_nas/mkza/"; // Input Directory Location - relative path
+    const string out_path = "/share/centaurus_nas/jmg_temp/energy_density_test/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
 
 
@@ -1016,16 +1016,46 @@ int main(int argc, char** argv) {
         // Calculate spatial derivatives for energy density (kinetic energy)
         double local_energy = 0.0;
         
-        // Calculate kinetic energy: |∇φ|² (matching optimized file convention exactly)
+        
+        // Calculate kinetic energy: |∇φ|² using central/one-sided differences
         for (comp = 0; comp < nb_fields; comp++) {
-            // Match optimized file: backward differences (no time offset needed since no evolution)
-            double fieldx_comp = (fields[comp][i] - fields[comp][imx]) / dx;
-            double fieldy_comp = (fields[comp][i] - fields[comp][imy]) / dy;
-            double fieldz_comp = (fields[comp][i] - fields[comp][imz]) / dz;
-            
-            // Kinetic energy density contribution
+            // Get 3D coordinates for this point
+            long long int i_coord = (i + dataStart) / (ny * nz);
+            long long int j_coord = ((i + dataStart) / nz) % ny;
+            long long int k_coord = (i + dataStart) % nz;
+
+            double fieldx_comp, fieldy_comp, fieldz_comp;
+
+            // X direction
+            if (i_coord == 0) {
+                fieldx_comp = (fields[comp][ipx] - fields[comp][i]) / dx;
+            } else if (i_coord == nx - 1) {
+                fieldx_comp = (fields[comp][i] - fields[comp][imx]) / dx;
+            } else {
+                fieldx_comp = (fields[comp][ipx] - fields[comp][imx]) / (2.0 * dx);
+            }
+
+            // Y direction
+            if (j_coord == 0) {
+                fieldy_comp = (fields[comp][ipy] - fields[comp][i]) / dy;
+            } else if (j_coord == ny - 1) {
+                fieldy_comp = (fields[comp][i] - fields[comp][imy]) / dy;
+            } else {
+                fieldy_comp = (fields[comp][ipy] - fields[comp][imy]) / (2.0 * dy);
+            }
+
+            // Z direction
+            if (k_coord == 0) {
+                fieldz_comp = (fields[comp][ipz] - fields[comp][i]) / dz;
+            } else if (k_coord == nz - 1) {
+                fieldz_comp = (fields[comp][i] - fields[comp][imz]) / dz;
+            } else {
+                fieldz_comp = (fields[comp][ipz] - fields[comp][imz]) / (2.0 * dz);
+            }
+
             local_energy += (fieldx_comp*fieldx_comp + fieldy_comp*fieldy_comp + fieldz_comp*fieldz_comp);
         }
+
         
         // Add potential energy terms (matching optimized file exactly)
         f0 = fields[0][i]; f1 = fields[1][i]; f2 = fields[2][i]; f3 = fields[3][i];
