@@ -149,10 +149,11 @@ def plot_energy_vs_separation():
     plt.figure(figsize=(12, 8))
     
     # Plot energy vs separation with vacuum correction
-    plt.plot(data['separation'], energy_corrected, 'bo-', linewidth=2, markersize=8,
+    real_separation = 2 * data['separation'] * dz * nz
+    plt.plot(real_separation, energy_corrected, 'bo-', linewidth=2, markersize=8,
              label='Total Energy (vacuum subtracted)')
     
-    plt.xlabel('Monopole-Antimonopole Separation', fontsize=12)
+    plt.xlabel('Monopole-Antimonopole Separation (real distance)', fontsize=12)
     plt.ylabel('Total Energy', fontsize=12)
     plt.title(f'Total Energy vs Monopole-Antimonopole Separation (Vacuum Corrected)\n'
               f'γ = {gamma_val}π, Grid: {grid_size}³, Seed: {seed_val}', fontsize=14)
