@@ -45,11 +45,11 @@ const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from 
 // Monopole Boost Parameters (add after monopole position parameters)
 const double monopole1_vx = 0.0;  // Velocity components for monopole 1 (in units of c)
 const double monopole1_vy = 0.0;
-const double monopole1_vz = 0.1;  // Example: 0.1c boost in z direction
+const double monopole1_vz = 0.0;  // Example: 0.1c boost in z direction
 
 const double monopole2_vx = 0.0;  // Velocity components for monopole 2
 const double monopole2_vy = 0.0;
-const double monopole2_vz = -0.1; // Example: -0.1c boost in z direction (opposite)
+const double monopole2_vz = -0.0; // Example: -0.1c boost in z direction (opposite)
 
 
 const double gamma_param = (gamma_mult * pi); // Phase difference parameter
