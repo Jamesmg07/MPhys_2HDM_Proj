@@ -16,6 +16,10 @@ const double pi = 4.0 * atan(1.0);
 const int nts = 1; // Number of time steps saved in data arrays
 const vector<double> separations = {0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4}; // Different separation values to test
 
+// **NEW: Global output toggles (moved from main)**
+const bool save_energy_density = true;     // Save energy density at each xyz coordinate
+const bool save_separation_energy = true;  // Save total energy vs separation (1-to-1 mapping)
+
 const long long int nx = 256; // Grid Dimensions
 const long long int ny = 256;
 const long long int nz = 256; // Set nz = 1 for 2D.
@@ -115,9 +119,7 @@ const double scaling = 0; // Power law scaling of the scale factor wrt tau. Usin
 
 
 
-// **NEW: Global output toggles (moved from main)**
-const bool save_energy_density = true;     // Save energy density at each xyz coordinate
-const bool save_separation_energy = true;  // Save total energy vs separation (1-to-1 mapping)
+
 
 
 

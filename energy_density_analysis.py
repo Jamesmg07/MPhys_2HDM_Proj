@@ -197,41 +197,42 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
     except ValueError as e:
         print(f"    Error reshaping data: {e}")
         return None
-    
-    # Determine slice index if not provided
+
+    # Always take the slice at the center of the relevant axis
     if slice_index is None:
         slice_index = grid_size // 2  # Middle slice
     
     # Extract slice based on type
     if slice_type == 'xz':
-        # x-z plane at fixed y
-        energy_slice = energy_3d[:, slice_index, :]
+        # x-z plane at fixed y (middle y)
+        iy = grid_size // 2
+        energy_slice = energy_3d[:, iy, :]
         xlabel = 'x position'
         ylabel = 'z position'
         extent = [0, (grid_size-1)*dx, 0, (grid_size-1)*dz]
-        slice_info = f'y={slice_index*dy:.1f}'
+        slice_info = f'y={iy*dy:.1f}'
         # Boundary coordinates for the slice (second from edge)
         boundary_x_coords = [1*dx, (grid_size-2)*dx]  # x boundaries
         boundary_z_coords = [1*dz, (grid_size-2)*dz]  # z boundaries
     elif slice_type == 'xy':
-        # x-y plane at fixed z
-        energy_slice = energy_3d[:, :, slice_index]
+        # x-y plane at fixed z (middle z)
+        iz = grid_size // 2
+        energy_slice = energy_3d[:, :, iz]
         xlabel = 'x position'
         ylabel = 'y position'
         extent = [0, (grid_size-1)*dx, 0, (grid_size-1)*dy]
-        slice_info = f'z={slice_index*dz:.1f}'
-        # Boundary coordinates for the slice (second from edge)
+        slice_info = f'z={iz*dz:.1f}'
         boundary_x_coords = [1*dx, (grid_size-2)*dx]  # x boundaries
         boundary_z_coords = [1*dy, (grid_size-2)*dy]  # y boundaries (renamed for consistency)
     elif slice_type == 'yz':
-        # y-z plane at fixed x
-        energy_slice = energy_3d[slice_index, :, :]
+        # y-z plane at fixed x (middle x)
+        ix = grid_size // 2
+        energy_slice = energy_3d[ix, :, :]
         xlabel = 'y position'
         ylabel = 'z position'
         extent = [0, (grid_size-1)*dy, 0, (grid_size-1)*dz]
-        slice_info = f'x={slice_index*dx:.1f}'
-        # Boundary coordinates for the slice (second from edge)
-        boundary_x_coords = [1*dy, (grid_size-2)*dy]  # y boundaries (using x_coords variable name)
+        slice_info = f'x={ix*dx:.1f}'
+        boundary_x_coords = [1*dy, (grid_size-2)*dy]  # y boundaries
         boundary_z_coords = [1*dz, (grid_size-2)*dz]  # z boundaries
     else:
         raise ValueError(f"Unknown slice_type: {slice_type}")
@@ -240,65 +241,54 @@ def create_energy_density_slice_plot(data, separation, gamma_val, grid_size, see
     plt.figure(figsize=(12, 8))
     
     # Plot energy density slice
-    im = plt.imshow(energy_slice.T, origin='lower', extent=extent, 
+    im = plt.imshow(energy_slice.T, origin='lower', extent=extent,
                    aspect='auto', cmap='plasma', interpolation='bilinear')
-    
+
     # Add boundary box showing grid points 1 from edge (where vacuum energy applies)
-    # Draw thin rectangular boundary lines
     boundary_linewidth = 1.5
     boundary_color = 'white'
-    boundary_alpha = 0.8
-    
-    # Draw the boundary rectangle
-    plt.axvline(x=boundary_x_coords[0], color=boundary_color, linewidth=boundary_linewidth, 
+    boundary_alpha = 0.4  # decreased from 0.8
+
+    plt.axvline(x=boundary_x_coords[0], color=boundary_color, linewidth=boundary_linewidth,
                alpha=boundary_alpha, linestyle='-', label='Vacuum boundary (grid-2)')
-    plt.axvline(x=boundary_x_coords[1], color=boundary_color, linewidth=boundary_linewidth, 
+    plt.axvline(x=boundary_x_coords[1], color=boundary_color, linewidth=boundary_linewidth,
                alpha=boundary_alpha, linestyle='-')
-    plt.axhline(y=boundary_z_coords[0], color=boundary_color, linewidth=boundary_linewidth, 
+    plt.axhline(y=boundary_z_coords[0], color=boundary_color, linewidth=boundary_linewidth,
                alpha=boundary_alpha, linestyle='-')
-    plt.axhline(y=boundary_z_coords[1], color=boundary_color, linewidth=boundary_linewidth, 
+    plt.axhline(y=boundary_z_coords[1], color=boundary_color, linewidth=boundary_linewidth,
                alpha=boundary_alpha, linestyle='-')
-    
+
     plt.xlabel(xlabel, fontsize=12)
     plt.ylabel(ylabel, fontsize=12)
     plt.title(f'Energy Density ({slice_type.upper()} slice, {slice_info})\n'
-              f'Separation = {separation}, γ = {gamma_val}π, Grid: {grid_size}³, Seed: {seed_val}', 
+              f'Separation = {separation}, γ = {gamma_val}π, Grid: {grid_size}³, Seed: {seed_val}',
               fontsize=14)
-    
+
     # Add colorbar
     cbar = plt.colorbar(im)
     cbar.set_label('Energy Density', fontsize=11)
-    
+
     # Add statistics text box with boundary information
     # Calculate energy at boundary points for verification
-    if slice_type == 'xz':
+    if energy_slice.shape[0] > 2 and energy_slice.shape[1] > 2:
         boundary_energies = [
-            energy_slice[1, 1], energy_slice[1, -2], 
+            energy_slice[1, 1], energy_slice[1, -2],
             energy_slice[-2, 1], energy_slice[-2, -2]
         ]
-    elif slice_type == 'xy':
-        boundary_energies = [
-            energy_slice[1, 1], energy_slice[1, -2], 
-            energy_slice[-2, 1], energy_slice[-2, -2]
-        ]
-    elif slice_type == 'yz':
-        boundary_energies = [
-            energy_slice[1, 1], energy_slice[1, -2], 
-            energy_slice[-2, 1], energy_slice[-2, -2]
-        ]
-    
+    else:
+        boundary_energies = [np.nan]
+
     stats_text = (f'Min: {np.min(energy_slice):.2e}\n'
                  f'Max: {np.max(energy_slice):.2e}\n'
                  f'Mean: {np.mean(energy_slice):.2e}\n'
                  f'Std: {np.std(energy_slice):.2e}\n'
                  f'Boundary corners: {np.mean(boundary_energies):.2e}')
-    plt.text(0.02, 0.98, stats_text, transform=plt.gca().transAxes, 
+    plt.text(0.02, 0.98, stats_text, transform=plt.gca().transAxes,
             fontsize=9, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-    
-    # Add legend for boundary lines
+
     plt.legend(loc='upper right', fontsize=9)
-    
+
     return energy_slice
 
 def plot_energy_density_snapshots():
@@ -330,15 +320,15 @@ def plot_energy_density_snapshots():
         
         print(f"    Parameters: γ={gamma_val}π, separation={separation}, grid={grid_size}³")
         
-        # Create plots for different slice types
+        # Always use the middle slice for each axis
         slice_types = ['xz', 'xy', 'yz']
-        slice_indices = [grid_size//2, grid_size//2, grid_size//2]  # Middle slices
+        slice_indices = [grid_size//2, grid_size//2, grid_size//2]  # Always middle
         
         file_successful = True
         for slice_type, slice_idx in zip(slice_types, slice_indices):
             try:
                 energy_slice = create_energy_density_slice_plot(
-                    data, separation, gamma_val, grid_size, seed_val, 
+                    data, separation, gamma_val, grid_size, seed_val,
                     slice_type, slice_idx
                 )
                 
