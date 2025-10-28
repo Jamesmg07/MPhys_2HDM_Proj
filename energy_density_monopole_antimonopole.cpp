@@ -1079,40 +1079,42 @@ int main(int argc, char** argv) {
 
     // **FIXED: Output energy density with proper separation handling**
     if (rank == 0) {
-        vector<double> allEnergyDensity(nPos, 0.0);
-        
-        // Gather energy density from all processes (same MPI as before)
-        for (j = 0; j < coreSize; j++) {
-            allEnergyDensity[j] = energy_density[j];
-        }
-        
-        for (j = 1; j < size; j++) {
-            int localCoreStart, localCoreSize;
-            if (j < chunkRem) { 
-                localCoreStart = j * (chunk + 1); 
-                localCoreSize = chunk + 1; 
-            } else { 
-                localCoreStart = j * chunk + chunkRem; 
-                localCoreSize = chunk; 
-            }
-            
-            MPI_Recv(&allEnergyDensity[localCoreStart], localCoreSize, MPI_DOUBLE, j, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        }
-        
-        // Calculate total energy
-        double total_energy = 0.0;
-        for (j = 0; j < nPos; j++) {
-            total_energy += allEnergyDensity[j] * dx * dy * dz;
-        }
         
         // **NEW: Save separation vs energy (lightweight)**
         if (save_separation_energy) {
             separationEnergyFile << current_separation << "," << total_energy << endl;
             cout << "Separation " << current_separation << " -> Total Energy: " << total_energy << endl;
         }
-        
-        // **NEW: Save detailed energy density (heavy, optional)**
         if (save_energy_density) {
+            vector<double> allEnergyDensity(nPos, 0.0);
+            // Gather energy density from all processes (same MPI as before)
+            for (j = 0; j < coreSize; j++) {
+                allEnergyDensity[j] = energy_density[j];
+            }
+            
+            for (j = 1; j < size; j++) {
+                int localCoreStart, localCoreSize;
+                if (j < chunkRem) { 
+                    localCoreStart = j * (chunk + 1); 
+                    localCoreSize = chunk + 1; 
+                } else { 
+                    localCoreStart = j * chunk + chunkRem; 
+                    localCoreSize = chunk; 
+                }
+                
+                MPI_Recv(&allEnergyDensity[localCoreStart], localCoreSize, MPI_DOUBLE, j, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+            
+            // Calculate total energy
+            double total_energy = 0.0;
+            for (j = 0; j < nPos; j++) {
+                total_energy += allEnergyDensity[j] * dx * dy * dz;
+            }
+            
+        
+        
+            // **NEW: Save detailed energy density (heavy, optional)**
+        
             string energyDensityPath = out_path + "energy_density_" + outTag_current + ".csv";
             ofstream energyFile(energyDensityPath.c_str());
             energyFile << "x,y,z,energy_density" << endl;
