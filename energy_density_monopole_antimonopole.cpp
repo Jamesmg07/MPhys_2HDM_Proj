@@ -1077,21 +1077,17 @@ int main(int argc, char** argv) {
         local_total_energy += local_energy * dx * dy * dz;  // Accumulate total energy
     }
 
+    double global_total_energy = 0.0;
+    MPI_Reduce(&local_total_energy, &global_total_energy, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
     // **FIXED: Output energy density with proper separation handling**
     if (rank == 0) {
         
-
         // **NEW: Save separation vs energy (lightweight)**
-        if (save_separation_energy) {
-
-            // Calculate total energy
-            double total_energy = 0.0;
-            for (j = 0; j < nPos; j++) {
-                total_energy += energy_density[j] * dx * dy * dz;
-            }
-            
-            separationEnergyFile << current_separation << "," << total_energy << endl;
-            cout << "Separation " << current_separation << " -> Total Energy: " << total_energy << endl;
+        if (save_separation_energy) 
+        {
+        separationEnergyFile << current_separation << "," << global_total_energy << endl;
+        cout << "Separation " << current_separation << " -> Total Energy: " << global_total_energy << endl;
         }
         if (save_energy_density) {
             vector<double> allEnergyDensity(nPos, 0.0);

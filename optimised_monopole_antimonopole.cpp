@@ -32,7 +32,7 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = (nx * dx / (2 * dt));
-const int R_saveFreq = 10;
+const int R_saveTot = 10;
 
 const int seed = 73;
 
@@ -71,6 +71,7 @@ const double monopole_grid_spacing = 0.01; // Radial grid spacing for SOR_Fields
 const double monopole_prefactor = pow(2, -1.5); // Field normalization factor (v_sm / sqrt(2))
 
 const int sep_saveFreq = 2;
+const int R_saveFreq = int(nt / R_saveTot);
 
 
 const string outTag = "gamma=" + to_string(gamma_mult) + "pi_nx=" + to_string(nx) + "_sep=" + to_string(2*offset_from_centre*nz) + "_nt=" + to_string(nt) + "_seed=" + to_string(seed) + "_monopole" ;
@@ -562,9 +563,9 @@ int main(int argc, char** argv) {
                 //Boost points
                 double v_dot_r1 = x_1*v1_hat_x + y_1*v1_hat_y + z_1*v1_hat_z;
 
-                double x_1_prime = x_1 + (gamma1-1)*(v_dot_r1)*v1_hat_x + gamma1*t_lab*v1_mag*v1_hat_x;
-                double y_1_prime = y_1 + (gamma1-1)*(v_dot_r1)*v1_hat_y + gamma1*t_lab*v1_mag*v1_hat_y;
-                double z_1_prime = z_1 + (gamma1-1)*(v_dot_r1)*v1_hat_z + gamma1*t_lab*v1_mag*v1_hat_z;
+                double x_1_prime = x_1 + (gamma1-1)*(v_dot_r1)*v1_hat_x - gamma1*t_lab*v1_mag*v1_hat_x;
+                double y_1_prime = y_1 + (gamma1-1)*(v_dot_r1)*v1_hat_y - gamma1*t_lab*v1_mag*v1_hat_y;
+                double z_1_prime = z_1 + (gamma1-1)*(v_dot_r1)*v1_hat_z - gamma1*t_lab*v1_mag*v1_hat_z;
 
                 double r_1 = sqrt(x_1_prime*x_1_prime + y_1_prime*y_1_prime + z_1_prime*z_1_prime); // Calculate r_pos
                 double r_pos_1 = r_1 / monopole_grid_spacing; //Position of r in the smaller grid
@@ -623,9 +624,9 @@ int main(int argc, char** argv) {
                 //Boost points
                 double v_dot_r2 = x_2*v2_hat_x + y_2*v2_hat_y + z_2*v2_hat_z;
 
-                double x_2_prime = x_2 + (gamma2-1)*(v_dot_r2)*v2_hat_x + gamma2*t_lab*v2_mag*v2_hat_x;
-                double y_2_prime = y_2 + (gamma2-1)*(v_dot_r2)*v2_hat_y + gamma2*t_lab*v2_mag*v2_hat_y;
-                double z_2_prime = z_2 + (gamma2-1)*(v_dot_r2)*v2_hat_z + gamma2*t_lab*v2_mag*v2_hat_z;
+                double x_2_prime = x_2 + (gamma2-1)*(v_dot_r2)*v2_hat_x - gamma2*t_lab*v2_mag*v2_hat_x;
+                double y_2_prime = y_2 + (gamma2-1)*(v_dot_r2)*v2_hat_y - gamma2*t_lab*v2_mag*v2_hat_y;
+                double z_2_prime = z_2 + (gamma2-1)*(v_dot_r2)*v2_hat_z - gamma2*t_lab*v2_mag*v2_hat_z;
 
                 double r_2 = sqrt(x_2_prime*x_2_prime + y_2_prime*y_2_prime + z_2_prime*z_2_prime); // Calculate r_pos
 
@@ -1633,9 +1634,10 @@ int main(int argc, char** argv) {
 
             if (rank == 0) {
 
-                ostream rValuesStreamPtr = nullptr;
-                std::ofstream rValuesFile;
-                std::ostringstream dummyStream;
+                
+                ofstream rValuesFile;
+                ostringstream dummyStream;
+                ostream* rValuesStreamPtr = nullptr;
 
                 if (TimeStep % R_saveFreq == 0) {
                     string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
@@ -1656,13 +1658,19 @@ int main(int argc, char** argv) {
                 // Gather field data from all processes
                 for (comp = 0; comp < nb_fields; comp++) {
 
-                    for (j = 0; j < coreSize; j++) { fieldsOutnt[comp][j] = fields[comp][frontHaloSize + j]; }
+                    for (j = 0; j < coreSize; j++) { 
+                        fieldsOutnt[comp][j] = fields[comp][frontHaloSize + j]; 
+                    }
 
-                    for (j = 1; j < size; j++) {
+                    for (j = 1; j < size; j++) 
+                    {
 
-                        
-                        if (j < chunkRem) { localCoreStartnt = j * (chunk + 1); localCoreSizent = chunk + 1; }
-                        else { localCoreStartnt = j * chunk + chunkRem; localCoreSizent = chunk; }
+                        if (j < chunkRem) { 
+                            localCoreStartnt = j * (chunk + 1); localCoreSizent = chunk + 1; 
+                        }
+                        else {
+                             localCoreStartnt = j * chunk + chunkRem; localCoreSizent = chunk; 
+                        }
 
                         MPI_Recv(&fieldsOutnt[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                     }

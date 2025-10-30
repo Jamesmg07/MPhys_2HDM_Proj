@@ -507,9 +507,9 @@ int main(int argc, char** argv) {
                 //Boost points
                 double v_dot_r1 = x_1*v1_hat_x + y_1*v1_hat_y + z_1*v1_hat_z;
 
-                double x_1_prime = x_1 + (gamma1-1)*(v_dot_r1)*v1_hat_x + gamma1*t_lab*v1_mag*v1_hat_x;
-                double y_1_prime = y_1 + (gamma1-1)*(v_dot_r1)*v1_hat_y + gamma1*t_lab*v1_mag*v1_hat_y;
-                double z_1_prime = z_1 + (gamma1-1)*(v_dot_r1)*v1_hat_z + gamma1*t_lab*v1_mag*v1_hat_z;
+                double x_1_prime = x_1 + (gamma1-1)*(v_dot_r1)*v1_hat_x - gamma1*t_lab*v1_mag*v1_hat_x;
+                double y_1_prime = y_1 + (gamma1-1)*(v_dot_r1)*v1_hat_y - gamma1*t_lab*v1_mag*v1_hat_y;
+                double z_1_prime = z_1 + (gamma1-1)*(v_dot_r1)*v1_hat_z - gamma1*t_lab*v1_mag*v1_hat_z;
 
                 double r_1 = sqrt(x_1_prime*x_1_prime + y_1_prime*y_1_prime + z_1_prime*z_1_prime); // Calculate r_pos
                 double r_pos_1 = r_1 / monopole_grid_spacing; //Position of r in the smaller grid
@@ -568,9 +568,9 @@ int main(int argc, char** argv) {
                 //Boost points
                 double v_dot_r2 = x_2*v2_hat_x + y_2*v2_hat_y + z_2*v2_hat_z;
 
-                double x_2_prime = x_2 + (gamma2-1)*(v_dot_r2)*v2_hat_x + gamma2*t_lab*v2_mag*v2_hat_x;
-                double y_2_prime = y_2 + (gamma2-1)*(v_dot_r2)*v2_hat_y + gamma2*t_lab*v2_mag*v2_hat_y;
-                double z_2_prime = z_2 + (gamma2-1)*(v_dot_r2)*v2_hat_z + gamma2*t_lab*v2_mag*v2_hat_z;
+                double x_2_prime = x_2 + (gamma2-1)*(v_dot_r2)*v2_hat_x - gamma2*t_lab*v2_mag*v2_hat_x;
+                double y_2_prime = y_2 + (gamma2-1)*(v_dot_r2)*v2_hat_y - gamma2*t_lab*v2_mag*v2_hat_y;
+                double z_2_prime = z_2 + (gamma2-1)*(v_dot_r2)*v2_hat_z - gamma2*t_lab*v2_mag*v2_hat_z;
 
                 double r_2 = sqrt(x_2_prime*x_2_prime + y_2_prime*y_2_prime + z_2_prime*z_2_prime); // Calculate r_pos
 
