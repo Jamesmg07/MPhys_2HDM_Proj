@@ -6,9 +6,9 @@ from pathlib import Path
 import time
 
 # Simulation parameters
-DATA_DIR = Path("/share/centaurus_nas/jmg_temp/energy_density_test/")
-OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/energy_density_test/")
-nx, ny, nz = 256, 256, 256  # Grid dimensions from C++ code
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/sep_only/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/sep_only/")
+nx, ny, nz = 512, 512, 512  # Grid dimensions from C++ code
 dx, dy, dz = 0.5, 0.5, 0.5  # Grid spacings
 gamma_mult = 0.5  # From C++ code
 seed = 73  # From C++ code

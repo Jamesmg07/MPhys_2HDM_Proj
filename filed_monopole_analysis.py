@@ -6,6 +6,15 @@ from pathlib import Path
 import matplotlib.animation as animation
 import time  # Add timing
 
+
+
+
+# Data directories  
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
+
+
+
 # Default simulation parameters (fallback values)
 DEFAULT_PARAMS = {
     'nx': 128, 'ny': 128, 'nz': 128,
@@ -27,6 +36,7 @@ def load_simulation_parameters(data_dir):
     
     # Use the most recent parameter file if multiple exist
     param_file = max(param_files, key=lambda p: p.stat().st_mtime)
+    
     print(f"Loading parameters from: {param_file.name}")
     
     params = DEFAULT_PARAMS.copy()
@@ -65,9 +75,6 @@ def load_simulation_parameters(data_dir):
     
     return params
 
-# Data directories  
-DATA_DIR = Path("/share/centaurus_nas/mkza/Week_3/Monopole_0495pi/")
-OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Plots/")
 
 # Load simulation parameters from C++ generated file
 PARAMS = load_simulation_parameters(DATA_DIR)
@@ -500,36 +507,36 @@ def setup_slice_plot(ax, slice_data, vmin, vmax, arrow_scale, global_arrow_max, 
     coord1 = slice_data['coord1']
     coord2 = slice_data['coord2']
     slice_type = slice_data['slice_type']
-    
+
     # Create subsampled coordinate arrays for arrows
     coord1_sub = coord1[::ARROW_STEP]
     coord2_sub = coord2[::ARROW_STEP]
     X_sub, Y_sub = np.meshgrid(coord1_sub, coord2_sub)
-    
+
     # Background field plot
-    im = ax.imshow(monopole_field.T, origin='lower', 
+    im = ax.imshow(monopole_field.T, origin='lower',
                    extent=[coord1[0], coord1[-1], coord2[0], coord2[-1]],
                    aspect='auto', cmap='plasma', vmin=vmin, vmax=vmax,
                    interpolation='bilinear')
-    
+
     # Arrow plot
     quiv = ax.quiver(X_sub, Y_sub, field1_plot.T, field2_plot.T,
-                     field_magnitude.T, scale=arrow_scale, width=ARROW_WIDTH, 
+                     field_magnitude.T, scale=arrow_scale, width=ARROW_WIDTH,
                      alpha=0.9, cmap='Reds', scale_units='xy',
                      clim=(0, global_arrow_max))
-    
+
     # Labels and title based on slice type
     if slice_type == 'xz':
         ax.set_xlabel('x position')
         ax.set_ylabel('z position')
-        ax.set_title(fr'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, $\gamma$ = {gamma_string}$\pi$')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}π')
         vector_label = 'Field magnitude |R1,R3|'
     elif slice_type == 'xy':
         ax.set_xlabel('x position')
         ax.set_ylabel('y position')
-        ax.set_title(fr'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, $\gamma$ = {gamma_string}$\pi$')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}π')
         vector_label = 'Field magnitude |R1,R2|'
-    
+
     ax.set_xlim(coord1[0], coord1[-1])
     ax.set_ylim(coord2[0], coord2[-1])
     
@@ -689,7 +696,7 @@ def analyze_and_create_all_outputs(selected_files):
         quiv_xz.set_UVC(field1_plot.T, field2_plot.T)
         quiv_xz.set_array(field_magnitude.T.flatten())
         quiv_xz.set_clim(0, global_arrow_max_xz)
-        ax_xz.set_title(fr'Monopole Field Evolution (y={slice_index_xz}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, $\gamma$ = {gamma_string}$\pi$')
+        ax_xz.set_title(f'Monopole Field Evolution (y={slice_index_xz}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}π')
         return [im_xz, quiv_xz]
 
     # Create XZ animation

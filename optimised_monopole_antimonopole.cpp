@@ -303,6 +303,15 @@ int main(int argc, char** argv) {
     if (rank == 0) {
         cout << "STEP 7: Output files created" << endl;
     }
+    //MONOPOLE POSITIONS - calculated from offsets
+    // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
+    x1 = 0.5 * (nx - 1) + monopole1_x_offset;
+    y1 = 0.5 * (ny - 1) + monopole1_y_offset;
+    z1 = 0.5 * (nz - 1) + monopole1_z_offset;
+
+    x2 = 0.5 * (nx - 1) + monopole2_x_offset;
+    y2 = 0.5 * (ny - 1) + monopole2_y_offset;
+    z2 = 0.5 * (nz - 1) + monopole2_z_offset;
 
     // Create simulation parameters file for Python analysis
     if (rank == 0) {
@@ -346,15 +355,7 @@ int main(int argc, char** argv) {
         cout << "STEP 7a: Simulation parameters file created: " << paramPath << endl;
     }
 
-    //MONOPOLE POSITIONS - calculated from offsets
-    // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
-    x1 = 0.5 * (nx - 1) + monopole1_x_offset;
-    y1 = 0.5 * (ny - 1) + monopole1_y_offset;
-    z1 = 0.5 * (nz - 1) + monopole1_z_offset;
-
-    x2 = 0.5 * (nx - 1) + monopole2_x_offset;
-    y2 = 0.5 * (ny - 1) + monopole2_y_offset;
-    z2 = 0.5 * (nz - 1) + monopole2_z_offset;
+    
 
     if (rank == 0) {
         cout << "STEP 8: Monopole positions calculated" << endl;
