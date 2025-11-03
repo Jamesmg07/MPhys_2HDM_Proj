@@ -25,15 +25,15 @@ const long long int ny = 512;
 const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
-const double dx = 0.7; //Grid Spacings
-const double dy = 0.7;
-const double dz = 0.7;
+const double dx = 0.5; //Grid Spacings
+const double dy = 0.5;
+const double dz = 0.5;
 
 
 const double gamma_mult = 0.5;
 
 // === NEW: Toggle for two distinct gammas ===
-const bool use_two_gammas = false; // Set to true for two gammas, false for original single gamma
+const bool use_two_gammas = true; // Set to true for two gammas, false for original single gamma
 
 // === NEW: Second gamma parameters (only used if use_two_gammas = true) ===
 const double gamma_mult_1 = 0.5; // Used for T1
@@ -517,6 +517,10 @@ int main(int argc, char** argv) {
         // Calculate fields for t=0 only (remove unnecessary time loop)
         for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
 
+            if (rank == 0 && ((i - frontHaloSize) % 10000000 == 0)) {
+                cout << "Rank 0: Processing i = " << (i - frontHaloSize) << " / " << coreSize << endl;
+            }
+
             if (rank == 0 && i == frontHaloSize) {
                 cout << "STEP 9d: Starting main monopole calculation loop" << endl;
             }
@@ -541,7 +545,6 @@ int main(int argc, char** argv) {
 
             // Debugging output to check bounds and values
             if (r_c_1 < 0) {
-
                 cout << "Error: Index out of bounds at process " << rank 
                     << " with i=" << i << ", r_c_1=" << r_c_1 
                     << ", r_p_1=" << r_p_1 << ", x_1=" << x_1_prime << ", y_1=" << y_1_prime 
@@ -555,13 +558,11 @@ int main(int argc, char** argv) {
             
             // Case where the grid goes out of bounds of the solution fine grid
             if (r_p_1 >= (k_.size())) {
-
                 k_1 = 1.0;
                 k_1_p = 0.0;
             
             // Case where the closest grid point is at the origin
             } else if (r_c_1 == 0) {
-
                 // Values of k and k+ at r_value
                 k_1 = ((( - (r_c_1 - r_pos_1) * k_[r_p_1] )) 
                         + ((r_p_1 - r_pos_1) * k_[r_c_1]));
@@ -570,14 +571,12 @@ int main(int argc, char** argv) {
             
             // Middle points
             } else {
-
                 k_1 = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k_[r_p_1]) / 2) 
                     - (((r_m_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_[r_c_1])) 
                     + (((r_c_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_[r_m_1]) / 2));
                 k_1_p = ((((r_m_1 - r_pos_1) * (r_c_1 - r_pos_1) * k_p[r_p_1]) / 2) 
                         - (((r_m_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_p[r_c_1])) 
                         + (((r_c_1 - r_pos_1) * (r_p_1 - r_pos_1) * k_p[r_m_1]) / 2));
-
             }
 
 
@@ -600,9 +599,14 @@ int main(int argc, char** argv) {
             int r_m_2 = r_c_2 - 1;
             int r_p_2 = r_c_2 + 1;
 
+            if (!isfinite(r_1) || !isfinite(r_2)) {
+                cout << "Error: Non-finite r_1 or r_2 at process " << rank
+                    << " i=" << i << " r_1=" << r_1 << " r_2=" << r_2 << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+
             // Debugging output to check bounds and values
             if (r_c_2 < 0) {
-
                 cout << "Error: Index out of bounds at process " << rank 
                     << " with i=" << i << ", r_c_2=" << r_c_2 
                     << ", r_p_2=" << r_p_2 << ", x_2=" << x_2_prime << ", y_2=" << y_2_prime
@@ -618,12 +622,10 @@ int main(int argc, char** argv) {
             // Values of k_ and k_+ at r_value
 
             if (r_p_2 >= (k_.size())) {
-
                 k_2 = 1.0;
                 k_2_p = 0.0;
 
             } else if (r_c_2 == 0) {
-
                 // Values of k_ and k+ at r_value
                 k_2 = ((( - (r_c_2 - r_pos_2) * k_[r_p_2] )) 
                         + ((r_p_2 - r_pos_2) * k_[r_c_2]));
@@ -637,7 +639,6 @@ int main(int argc, char** argv) {
                 k_2_p = ((((r_m_2 - r_pos_2) * (r_c_2 - r_pos_2) * k_p[r_p_2]) / 2) 
                         - (((r_m_2 - r_pos_2) * (r_p_2 - r_pos_2) * k_p[r_c_2])) 
                         + (((r_c_2 - r_pos_2) * (r_p_2 - r_pos_2) * k_p[r_m_2]) / 2));
-
             }
 
             double g_1_p = (k_1 - k_1_p);
@@ -650,7 +651,6 @@ int main(int argc, char** argv) {
             complex<double> u_2[2][2];   // Define a 2x2 matrix of complex<double> numbers named u_2
 
             if ( z_1_prime == r_1 ) {
-
                 u_1[0][0] = complex<double>(1.0, 0.0);  
                 u_1[0][1] = complex<double>(0.0, 0.0); 
                 u_1[1][0] = complex<double>(0.0, 0.0); 
@@ -661,9 +661,7 @@ int main(int argc, char** argv) {
                 u_2[1][0] = complex<double>(1.0, 0.0); 
                 u_2[1][1] = complex<double>(0.0, 0.0);
 
-
             } else if ( z_2_prime == -r_2 ) {
-
                 u_1[0][0] = complex<double>(0.0, 0.0);  
                 u_1[0][1] = complex<double>(-1.0, 0.0); 
                 u_1[1][0] = complex<double>(1.0, 0.0); 
@@ -673,10 +671,8 @@ int main(int argc, char** argv) {
                 u_2[0][1] = complex<double>(0.0, 0.0); 
                 u_2[1][0] = complex<double>(0.0, 0.0); 
                 u_2[1][1] = complex<double>(-1.0, 0.0);
-                
                         
             } else if ( z_1_prime!= r_1 and z_2_prime != -r_2 and z_2_prime== r_2) {
-
                 u_1[0][0] = complex<double>(0.0, 0.0);  
                 u_1[0][1] = complex<double>(-1.0, 0.0); 
                 u_1[1][0] = complex<double>(1.0, 0.0); 
@@ -689,11 +685,9 @@ int main(int argc, char** argv) {
 
             } else {
 
-
                 double cos_1;    // cos(theta_1 / 2), cos(theta_2 / 2)
 
                 cos_1 = pow(0.5 * (1 + (z_1_prime / r_1)), 0.5);  // cos(theta_1 / 2)
-
 
                 u_1[0][0] = complex<double>(cos_1, 0.0);  
                 u_1[0][1] = complex<double>(- x_1_prime / (2 * r_1 * cos_1), y_1_prime / (2 * r_1 * cos_1)); 
@@ -708,9 +702,7 @@ int main(int argc, char** argv) {
                 u_2[0][1] = complex<double>(- x_2_prime / (2 * r_2 * sin_2), y_2_prime / (2 * r_2 * sin_2)); 
                 u_2[1][0] = complex<double>(x_2_prime / (2 * r_2 * sin_2), y_2_prime / (2 * r_2 * sin_2)); 
                 u_2[1][1] = complex<double>(- sin_2, 0.0);
-
             }
-
 
             // === MODIFIED: T matrix and tensor product calculation ===
             // Define matrix M
@@ -764,7 +756,7 @@ int main(int argc, char** argv) {
                 // Compute B1 = A1 * M and B2 = A2 * M
                 complex<double> B1[2][2], B2[2][2];
                 for (int row = 0; row < 2; ++row) {
-                    for (int col = 0; col < 2; ++col) {  // FIXED: was ++row, causing infinite loop
+                    for (int col = 0; col < 2; ++col) {
                         B1[row][col] = complex<double>(0.0, 0.0);
                         B2[row][col] = complex<double>(0.0, 0.0);
                         for (int index = 0; index < 2; ++index) {
@@ -788,7 +780,7 @@ int main(int argc, char** argv) {
             } else {
                 // --- Original single gamma case: B ⊗ B ---
                 
-                // Define the T matrix (original)
+                // Define the T matrix
                 complex<double> T[2][2] = {
                     {exp(complex<double>(0, 0.5 * gamma_param)), complex<double>(0.0, 0.0)},
                     {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param))}
@@ -849,17 +841,6 @@ int main(int argc, char** argv) {
             // Define the real 4-component vector
             double phi_both[4] = { (- g_1_p * g_2_p), (g_1 * g_2), (- g_1 * g_2), (g_1_p * g_2_p) };
 
-            // Populate k_kp and g_gp
-            k_kp[0][i] = k_1;
-            k_kp[1][i] = k_1_p;
-            k_kp[2][i] = k_2;
-            k_kp[3][i] = k_2_p;
-
-            g_gp[0][i] = phi_both[0];
-            g_gp[1][i] = phi_both[1];
-            g_gp[2][i] = phi_both[2];
-            g_gp[3][i] = phi_both[3];
-
             // Define the complex vector phi
             complex<double> phi[4];
 
@@ -886,7 +867,6 @@ int main(int argc, char** argv) {
 
         // Loop over the different fields (the nb_fields components of the vector of fields)
         for (comp = 0; comp < nb_fields; comp++) {
-
             MPI_Sendrecv(&fields[comp][frontHaloSize], nbrBackHaloSize, MPI_DOUBLE, (rank - 1 + size) % size, comp, // Send this
                 &fields[comp][coreSize + frontHaloSize], backHaloSize, MPI_DOUBLE, (rank + 1) % size, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE); // Receive this
 
@@ -895,7 +875,6 @@ int main(int argc, char** argv) {
         }
        
     }
-
 
     gettimeofday(&end, NULL);
 
@@ -928,8 +907,6 @@ int main(int argc, char** argv) {
     double spatial_laplacians[nb_fields];
     double temporal_derivs[nb_fields];
 
- 
-
     if (rank == 0) {
         cout << "Calculating energy density for separation " << current_separation << endl;
     }
@@ -959,12 +936,8 @@ int main(int argc, char** argv) {
         imz = (z_pos - 1 + nz) % nz + z_base;
         ipz = (z_pos + 1) % nz + z_base;
 
-            
-            
-        
         // Calculate spatial derivatives for energy density (kinetic energy)
         double local_energy = 0.0;
-        
         
         // Calculate kinetic energy: |∇φ|² using central/one-sided differences
         for (comp = 0; comp < nb_fields; comp++) {
@@ -1005,7 +978,6 @@ int main(int argc, char** argv) {
             local_energy += (fieldx_comp*fieldx_comp + fieldy_comp*fieldy_comp + fieldz_comp*fieldz_comp);
         }
 
-        
         // Add potential energy terms (matching optimized file exactly)
         f0 = fields[0][i]; f1 = fields[1][i]; f2 = fields[2][i]; f3 = fields[3][i];
         f4 = fields[4][i]; f5 = fields[5][i]; f6 = fields[6][i]; f7 = fields[7][i];
@@ -1040,7 +1012,15 @@ int main(int argc, char** argv) {
         }
         if (save_energy_density) {
             
+            // **FIXED: Allocate full array for gathering all energy density data**
+            vector<double> full_energy_density(nPos, 0.0);
             
+            // Copy rank 0's data
+            for (j = 0; j < coreSize; j++) {
+                full_energy_density[j] = energy_density[j];
+            }
+            
+            // Receive data from other ranks
             for (j = 1; j < size; j++) {
                 int localCoreStart, localCoreSize;
                 if (j < chunkRem) { 
@@ -1051,11 +1031,8 @@ int main(int argc, char** argv) {
                     localCoreSize = chunk; 
                 }
                 
-                MPI_Recv(&energy_density[localCoreStart], localCoreSize, MPI_DOUBLE, j, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&full_energy_density[localCoreStart], localCoreSize, MPI_DOUBLE, j, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-            
-            
-        
         
             // **NEW: Save detailed energy density (heavy, optional)**
         
@@ -1074,7 +1051,7 @@ int main(int argc, char** argv) {
                 double y_pos = j_coord * dy;
                 double z_pos = k_coord * dz;
                 
-                energyFile << x_pos << "," << y_pos << "," << z_pos << "," << energy_density[j] << endl;
+                energyFile << x_pos << "," << y_pos << "," << z_pos << "," << full_energy_density[j] << endl;
             }
             
             energyFile.close();
@@ -1083,7 +1060,9 @@ int main(int argc, char** argv) {
         
     } else {
         // Send energy density to rank 0 (same MPI as before)
-        MPI_Send(&energy_density[0], coreSize, MPI_DOUBLE, 0, 99, MPI_COMM_WORLD);
+        if (save_energy_density) {
+            MPI_Send(&energy_density[0], coreSize, MPI_DOUBLE, 0, 99, MPI_COMM_WORLD);
+        }
     }
 
     } // End of separation loop
