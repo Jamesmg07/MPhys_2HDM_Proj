@@ -322,6 +322,9 @@ int main(int argc, char** argv) {
     inputFile.close();
     //MONOPOLE POSITIONS - calculated from offsets
     // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
+
+
+    
     for (int sep_idx = 0; sep_idx < separations.size(); sep_idx++) {
         
     double current_separation = separations[sep_idx];
@@ -479,12 +482,14 @@ int main(int argc, char** argv) {
             cout << "STEP 9c: Boost parameters calculated" << endl;
         }
 
-        // Initialize k and k_p arrays
-        vector<vector<double>> k_kp(4, vector<double>(totSize, 0.0));
-        vector<vector<double>> g_gp(4, vector<double>(totSize, 0.0));
+      
             
         // Calculate fields for t=0 only (remove unnecessary time loop)
         for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
+
+            if (rank == 0 && ((i - frontHaloSize) % 10000000 == 0)) {
+                cout << "Rank 0: Processing i = " << (i - frontHaloSize) << " / " << coreSize << endl;
+            }
 
             if (rank == 0 && i == frontHaloSize) {
                 cout << "STEP 9d: Starting main monopole calculation loop" << endl;
@@ -568,6 +573,12 @@ int main(int argc, char** argv) {
             int r_c_2 = static_cast<int>(round(r_pos_2)); 
             int r_m_2 = r_c_2 - 1;
             int r_p_2 = r_c_2 + 1;
+
+            if (!isfinite(r_1) || !isfinite(r_2)) {
+                cout << "Error: Non-finite r_1 or r_2 at process " << rank
+                    << " i=" << i << " r_1=" << r_1 << " r_2=" << r_2 << endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
 
             // Debugging output to check bounds and values
             if (r_c_2 < 0) {
@@ -753,16 +764,7 @@ int main(int argc, char** argv) {
             // Define the real 4-component vector
             double phi_both[4] = { (- g_1_p * g_2_p), (g_1 * g_2), (- g_1 * g_2), (g_1_p * g_2_p) };
 
-            // Populate k_kp and g_gp
-            k_kp[0][i] = k_1;
-            k_kp[1][i] = k_1_p;
-            k_kp[2][i] = k_2;
-            k_kp[3][i] = k_2_p;
-
-            g_gp[0][i] = phi_both[0];
-            g_gp[1][i] = phi_both[1];
-            g_gp[2][i] = phi_both[2];
-            g_gp[3][i] = phi_both[3];
+            
 
             // Define the complex vector phi
             complex<double> phi[4];
