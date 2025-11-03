@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     const string ic_type = "monopole";
     const string bc_type = "fixed";
     const int nb_fields = 8; // Number of fields in simulation
-    const bool calcEnergy = true; // Output Choices
+    const bool calcEnergy = false; // Output Choices
     const bool wallDetect = false;
     const bool finalOut = true;
     const bool monopoleDetect = false;

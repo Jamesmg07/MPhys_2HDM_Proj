@@ -141,7 +141,7 @@ def plot_energy_vs_separation():
     gamma_val, grid_size, _, seed_val = extract_parameters_from_filename(sep_energy_file.name)
     
     # Calculate vacuum energy to subtract (for total energy)
-    vacuum_energy = (1/8) * ((grid_size-2) * dx)**3
+    vacuum_energy = (1/8) * ((grid_size) * dx)**3
     
     # Apply vacuum energy correction to total energy
     energy_corrected = data['total_energy'] + vacuum_energy
