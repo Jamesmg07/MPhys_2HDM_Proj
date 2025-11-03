@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
     
     const int saveFreq = 2;
     const string inp_path = "./"; // Input Directory Location - relative path
-    const string out_path = "/share/centaurus_nas/jmg_temp/sep_only/"; // Data Directory Location - fixed path
+    const string out_path = "/share/centaurus_nas/mkza/Week_6/two_gamma_0pi/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
 
 
@@ -764,7 +764,7 @@ int main(int argc, char** argv) {
                 // Compute B1 = A1 * M and B2 = A2 * M
                 complex<double> B1[2][2], B2[2][2];
                 for (int row = 0; row < 2; ++row) {
-                    for (int col = 0; col < 2; ++row) {
+                    for (int col = 0; col < 2; ++col) {  // FIXED: was ++row, causing infinite loop
                         B1[row][col] = complex<double>(0.0, 0.0);
                         B2[row][col] = complex<double>(0.0, 0.0);
                         for (int index = 0; index < 2; ++index) {
