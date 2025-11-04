@@ -14,7 +14,22 @@ const double pi = 4.0 * atan(1.0);
 
 //Simulation paramaters (adjustable):
 
-const vector<double> separations = {0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3, 0.325, 0.35, 0.375, 0.4, 0.425}; // Different separation values to test
+const string inp_path = "/share/centaurus_nas/jmg_temp/"; // Input Directory Location - relative path
+const string out_path = "/share/centaurus_nas/jmg_temp/fine_sep/"; // Data Directory Location - fixed path
+
+const double separation_a = 0.225;      // Start value
+const double separation_b = 0.275;    // End value (inclusive)
+const double separation_step = 0.0025; // Step size
+
+vector<double> generate_separations(double a, double b, double step) {
+    vector<double> vals;
+    for (double val = a; val <= b + 1e-8; val += step) { // 1e-8 for floating point tolerance
+        vals.push_back(val);
+    }
+    return vals;
+}
+
+const vector<double> separations = generate_separations(separation_a, separation_b, separation_step);
 
 // **NEW: Global output toggles (moved from main)**
 const bool save_energy_density = false;     // Save energy density at each xyz coordinate
@@ -33,11 +48,11 @@ const double dz = 0.5;
 const double gamma_mult = 0.5;
 
 // === NEW: Toggle for two distinct gammas ===
-const bool use_two_gammas = true; // Set to true for two gammas, false for original single gamma
+const bool use_two_gammas = false; // Set to true for two gammas, false for original single gamma
 
 // === NEW: Second gamma parameters (only used if use_two_gammas = true) ===
 const double gamma_mult_1 = 0.5; // Used for T1
-const double gamma_mult_2 = 0; // Used for T2 (only active when use_two_gammas = true)
+const double gamma_mult_2 = 0.5; // Used for T2 (only active when use_two_gammas = true)
 
 const int seed = 73;
 
@@ -146,8 +161,7 @@ int main(int argc, char** argv) {
     const int nb_fields = 8; // Number of fields in simulation
     
     const int saveFreq = 2;
-    const string inp_path = "./"; // Input Directory Location - relative path
-    const string out_path = "/share/centaurus_nas/mkza/Week_6/two_gamma_0pi/"; // Data Directory Location - fixed path
+
     const int countRate = 20; // Increments for simulation progress status output.
 
 
