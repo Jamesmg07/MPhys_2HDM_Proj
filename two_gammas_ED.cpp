@@ -510,9 +510,7 @@ int main(int argc, char** argv) {
             cout << "STEP 9c: Boost parameters calculated" << endl;
         }
 
-        // Initialize k and k_p arrays
-        vector<vector<double>> k_kp(4, vector<double>(totSize, 0.0));
-        vector<vector<double>> g_gp(4, vector<double>(totSize, 0.0));
+        
             
         // Calculate fields for t=0 only (remove unnecessary time loop)
         for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
