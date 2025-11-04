@@ -10,8 +10,8 @@ import time  # Add timing
 
 
 # Data directories  
-DATA_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
-OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/05pi_large_new/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/05pi_large_new/")
 
 
 

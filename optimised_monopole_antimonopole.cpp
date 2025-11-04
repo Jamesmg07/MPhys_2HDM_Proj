@@ -14,15 +14,17 @@ const double pi = 4.0 * atan(1.0);
 
 
 
+const string inp_path = "/share/centaurus_nas/jmg_temp/"; // Input Directory Location - relative path
+const string out_path = "/share/centaurus_nas/jmg_temp/05pi_attract/"; // Data Directory Location - fixed path
 
 
 //Simulation paramaters (adjustable):
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 128; // Grid Dimensions
-const long long int ny = 128;
-const long long int nz = 128; // Set nz = 1 for 2D.
+const long long int nx = 512; // Grid Dimensions
+const long long int ny = 512;
+const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings
@@ -31,12 +33,12 @@ const double dz = 0.5;
 const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
-const int nt = (nx * dx / (2 * dt));
+const int nt = 2000;
 const int R_saveTot = 10;
 
 const int seed = 73;
 
-const double gamma_mult = 1;
+const double gamma_mult = 0.5;
 // Monopole/Antimonopole Configuration Parameters
 
 const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from centre as a fraction of box size
@@ -149,8 +151,6 @@ int main(int argc, char** argv) {
     const bool monopoleDetect = false;
     const bool makeGif = true;
 
-    const string inp_path = "./"; // Input Directory Location - relative path
-    const string out_path = "/share/centaurus_nas/mkza/"; // Data Directory Location - fixed path
     const int countRate = 20; // Increments for simulation progress status output.
 
 
@@ -283,26 +283,28 @@ int main(int argc, char** argv) {
         cout << "STEP 6: MPI barrier passed, starting file operations" << endl;
     }
 
-    //Creates Output Files if required
-    string icPath = out_path + "ic.csv";
-    ifstream ic(icPath.c_str());
+    // //Creates Output Files if required
+    // string icPath = out_path + "ic.csv";
+    // ifstream ic(icPath.c_str());
 
-    string finalFieldPath = out_path + "vortices_gif_finalFields" +  outTag + ".csv";
-    ofstream finalFields(finalFieldPath.c_str());
-    finalFields << fixed << setprecision(6); // Add this line
+    // string finalFieldPath = out_path + "vortices_gif_finalFields" +  outTag + ".csv";
+    // ofstream finalFields(finalFieldPath.c_str());
+    // finalFields << fixed << setprecision(6); // Add this line
 
 
     string valsPerLoopPath = out_path + "energy_" +  outTag + ".csv";
     ofstream valsPerLoop(valsPerLoopPath.c_str());
     valsPerLoop << fixed << setprecision(6); // Add this line
 
-    string monopoleNumberPath = out_path + "2m_monopoleNumber" +  outTag + ".csv";
-    ofstream monopoleNumber(monopoleNumberPath.c_str());
-    monopoleNumber << fixed << setprecision(6); // Add this line
+    // string monopoleNumberPath = out_path + "2m_monopoleNumber" +  outTag + ".csv";
+    // ofstream monopoleNumber(monopoleNumberPath.c_str());
+    // monopoleNumber << fixed << setprecision(6); // Add this line
 
     if (rank == 0) {
         cout << "STEP 7: Output files created" << endl;
     }
+
+
     //MONOPOLE POSITIONS - calculated from offsets
     // Index values (not necessarily on grid and hence not integers) of the zero coordinate.
     x1 = 0.5 * (nx - 1) + monopole1_x_offset;
@@ -312,7 +314,7 @@ int main(int argc, char** argv) {
     x2 = 0.5 * (nx - 1) + monopole2_x_offset;
     y2 = 0.5 * (ny - 1) + monopole2_y_offset;
     z2 = 0.5 * (nz - 1) + monopole2_z_offset;
-
+    
     // Create simulation parameters file for Python analysis
     if (rank == 0) {
         string paramPath = out_path + "simulation_parameters_" + outTag + ".txt";
@@ -542,8 +544,8 @@ int main(int argc, char** argv) {
         }
 
         // Initialize k and k_p arrays
-        vector<vector<double>> k_kp(4, vector<double>(2 * totSize, 0.0));
-        vector<vector<double>> g_gp(4, vector<double>(2 * totSize, 0.0));
+        // vector<vector<double>> k_kp(4, vector<double>(2 * totSize, 0.0));
+        // vector<vector<double>> g_gp(4, vector<double>(2 * totSize, 0.0));
             
         
         // Calculate fields for t=0 and t=dt
@@ -551,6 +553,11 @@ int main(int argc, char** argv) {
             double t_lab = time_step * dt;  // t=0 for first step, t=dt for second step
         
             for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) {
+
+                if (rank == 0 && ((i - frontHaloSize) % 10000000 == 0)) {
+                cout << "Rank 0: Processing i = " << (i - frontHaloSize) << " / " << coreSize << endl;
+                }
+
 
                 if (rank == 0 && i == frontHaloSize) {
                     cout << "STEP 9d: Starting main monopole calculation loop" << endl;
@@ -684,8 +691,9 @@ int main(int argc, char** argv) {
 
                 complex<double> u_1[2][2];    // Define a 2x2 matrix of complex<double> numbers named u_1                       
                 complex<double> u_2[2][2];   // Define a 2x2 matrix of complex<double> numbers named u_2
+                const double EPS = 1e-8;
 
-                if ( z_1_prime == r_1 ) {
+                if (fabs(z_1_prime - r_1) < EPS) {
 
                     u_1[0][0] = complex<double>(1.0, 0.0);  
                     u_1[0][1] = complex<double>(0.0, 0.0); 
@@ -698,7 +706,7 @@ int main(int argc, char** argv) {
                     u_2[1][1] = complex<double>(0.0, 0.0);
 
 
-                } else if ( z_2_prime == -r_2 ) {
+                } else if (fabs(z_2_prime + r_2) < EPS) {
 
                     u_1[0][0] = complex<double>(0.0, 0.0);  
                     u_1[0][1] = complex<double>(-1.0, 0.0); 
@@ -711,7 +719,7 @@ int main(int argc, char** argv) {
                     u_2[1][1] = complex<double>(-1.0, 0.0);
                     
                             
-                } else if ( z_1_prime!= r_1 and z_2_prime != -r_2 and z_2_prime== r_2) {
+                } else if ( fabs(z_1_prime - r_1) >= EPS && fabs(z_2_prime + r_2) >= EPS && fabs(z_2_prime - r_2) < EPS) {
 
                     u_1[0][0] = complex<double>(0.0, 0.0);  
                     u_1[0][1] = complex<double>(-1.0, 0.0); 
@@ -821,15 +829,15 @@ int main(int argc, char** argv) {
                 double phi_both[4] = { (- g_1_p * g_2_p), (g_1 * g_2), (- g_1 * g_2), (g_1_p * g_2_p) };
 
                 // Populate k_kp and g_gp
-                k_kp[0][i] = k_1;
-                k_kp[1][i] = k_1_p;
-                k_kp[2][i] = k_2;
-                k_kp[3][i] = k_2_p;
+                // k_kp[0][i] = k_1;
+                // k_kp[1][i] = k_1_p;
+                // k_kp[2][i] = k_2;
+                // k_kp[3][i] = k_2_p;
 
-                g_gp[0][i] = phi_both[0];
-                g_gp[1][i] = phi_both[1];
-                g_gp[2][i] = phi_both[2];
-                g_gp[3][i] = phi_both[3];
+                // g_gp[0][i] = phi_both[0];
+                // g_gp[1][i] = phi_both[1];
+                // g_gp[2][i] = phi_both[2];
+                // g_gp[3][i] = phi_both[3];
 
                 // Define the complex vector phi
                 complex<double> phi[4];
@@ -877,131 +885,131 @@ int main(int argc, char** argv) {
 
         }
 
-        if (rank == 0) {
+        // if (rank == 0) {
             
-            string test_kValuesPath = out_path + "test_m_am_kValues" +  outTag + ".csv";
-            string test_gValuesPath = out_path + "test_m_am_gValues" +  outTag + ".csv";
+        //     string test_kValuesPath = out_path + "test_m_am_kValues" +  outTag + ".csv";
+        //     string test_gValuesPath = out_path + "test_m_am_gValues" +  outTag + ".csv";
             
-            ofstream test_kValuesFile(test_kValuesPath.c_str());
-            ofstream test_gValuesFile(test_gValuesPath.c_str());
+        //     ofstream test_kValuesFile(test_kValuesPath.c_str());
+        //     ofstream test_gValuesFile(test_gValuesPath.c_str());
 
-            test_kValuesFile << "k1,k1p,k2,k2p\n";
-            test_gValuesFile << "g1p_g2p_neg,g1_g2,g1_g2_neg,g1p_g2p\n";
-            test_kValuesFile << fixed << setprecision(6);
-            test_gValuesFile << fixed << setprecision(6);
+        //     test_kValuesFile << "k1,k1p,k2,k2p\n";
+        //     test_gValuesFile << "g1p_g2p_neg,g1_g2,g1_g2_neg,g1p_g2p\n";
+        //     test_kValuesFile << fixed << setprecision(6);
+        //     test_gValuesFile << fixed << setprecision(6);
             
 
-            vector<vector<double>> kOut(4, vector<double>(nPos, 0.0));
-            vector<vector<double>> gOut(4, vector<double>(nPos, 0.0));
-            int localCoreStartnt;
-            int localCoreSizent;
+        //     vector<vector<double>> kOut(4, vector<double>(nPos, 0.0));
+        //     vector<vector<double>> gOut(4, vector<double>(nPos, 0.0));
+        //     int localCoreStartnt;
+        //     int localCoreSizent;
 
-            // Gather field data from all processes
-            for (comp = 0; comp < 4; comp++) {
+        //     // Gather field data from all processes
+        //     for (comp = 0; comp < 4; comp++) {
 
-                for (j = 0; j < coreSize; j++) { 
+        //         for (j = 0; j < coreSize; j++) { 
                     
-                    kOut[comp][j] = k_kp[comp][frontHaloSize + j]; 
-                    gOut[comp][j] = g_gp[comp][frontHaloSize + j]; 
+        //             kOut[comp][j] = k_kp[comp][frontHaloSize + j]; 
+        //             gOut[comp][j] = g_gp[comp][frontHaloSize + j]; 
                     
-                }
+        //         }
 
-                for (j = 1; j < size; j++) {
+        //         for (j = 1; j < size; j++) {
 
                     
-                    if (j < chunkRem) { localCoreStartnt = j * (chunk + 1); localCoreSizent = chunk + 1; }
-                    else { localCoreStartnt = j * chunk + chunkRem; localCoreSizent = chunk; }
+        //             if (j < chunkRem) { localCoreStartnt = j * (chunk + 1); localCoreSizent = chunk + 1; }
+        //             else { localCoreStartnt = j * chunk + chunkRem; localCoreSizent = chunk; }
 
-                    MPI_Recv(&kOut[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    MPI_Recv(&gOut[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
-            }
+        //             MPI_Recv(&kOut[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        //             MPI_Recv(&gOut[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        //         }
+        //     }
 
-            // Output fields and R values to separate files
-            for (j = 0; j < nPos; j++) {
+        //     // Output fields and R values to separate files
+        //     for (j = 0; j < nPos; j++) {
 
 
-                // Write R values to R values file, ensuring explicit output of 0.0
-                test_kValuesFile << kOut[0][j] << "," << kOut[1][j] << "," << kOut[2][j] << "," << kOut[3][j] << "\n";
-                test_gValuesFile << gOut[0][j] << "," << gOut[1][j] << "," << gOut[2][j] << "," << gOut[3][j] << "\n";
+        //         // Write R values to R values file, ensuring explicit output of 0.0
+        //         test_kValuesFile << kOut[0][j] << "," << kOut[1][j] << "," << kOut[2][j] << "," << kOut[3][j] << "\n";
+        //         test_gValuesFile << gOut[0][j] << "," << gOut[1][j] << "," << gOut[2][j] << "," << gOut[3][j] << "\n";
                 
-            }
+        //     }
 
-            test_kValuesFile.close();
-            test_gValuesFile.close();
-        }
+        //     test_kValuesFile.close();
+        //     test_gValuesFile.close();
+        // }
 
-        else {
-            // Send field data to rank 0
-            for (comp = 0; comp < 4; comp++) {
-                MPI_Send(&k_kp[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
-                MPI_Send(&g_gp[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
-            }
-        }
+        // else {
+        //     // Send field data to rank 0
+        //     for (comp = 0; comp < 4; comp++) {
+        //         MPI_Send(&k_kp[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
+        //         MPI_Send(&g_gp[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
+        //     }
+        // }
 
-        if (rank == 0) {
-            // Create files for fields and R values
-            string test_fieldsPath = out_path + "test_m_am_fieldValues" +  outTag + ".csv";
-            string test_rValuesPath = out_path + "test_m_am_RValues" +  outTag + ".csv";
+        // if (rank == 0) {
+        //     // Create files for fields and R values
+        //     string test_fieldsPath = out_path + "test_m_am_fieldValues" +  outTag + ".csv";
+        //     string test_rValuesPath = out_path + "test_m_am_RValues" +  outTag + ".csv";
             
-            ofstream test_fieldsFile(test_fieldsPath.c_str());
-            ofstream test_rValuesFile(test_rValuesPath.c_str());
+        //     ofstream test_fieldsFile(test_fieldsPath.c_str());
+        //     ofstream test_rValuesFile(test_rValuesPath.c_str());
 
-            // Headers for fields and R values
-            test_fieldsFile << "field0,field1,field2,field3,field4,field5,field6,field7\n";
-            test_rValuesFile << "R0nt,R1nt,R2nt,R3nt\n";
-            // Set precision once
-            test_fieldsFile << fixed << setprecision(6);
-            test_rValuesFile << fixed << setprecision(6);
+        //     // Headers for fields and R values
+        //     test_fieldsFile << "field0,field1,field2,field3,field4,field5,field6,field7\n";
+        //     test_rValuesFile << "R0nt,R1nt,R2nt,R3nt\n";
+        //     // Set precision once
+        //     test_fieldsFile << fixed << setprecision(6);
+        //     test_rValuesFile << fixed << setprecision(6);
 
-            vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
-            double R0nt, R1nt, R2nt, R3nt;
-            int localCoreStartnt;
-            int localCoreSizent;
+        //     vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
+        //     double R0nt, R1nt, R2nt, R3nt;
+        //     int localCoreStartnt;
+        //     int localCoreSizent;
 
-            // Gather field data from all processes
-            for (comp = 0; comp < nb_fields; comp++) {
+        //     // Gather field data from all processes
+        //     for (comp = 0; comp < nb_fields; comp++) {
 
-                for (j = 0; j < coreSize; j++) { fieldsOutnt[comp][j] = fields[comp][frontHaloSize + j]; }
+        //         for (j = 0; j < coreSize; j++) { fieldsOutnt[comp][j] = fields[comp][frontHaloSize + j]; }
 
-                for (j = 1; j < size; j++) {
+        //         for (j = 1; j < size; j++) {
 
                     
-                    if (j < chunkRem) { localCoreStartnt = j * (chunk + 1); localCoreSizent = chunk + 1; }
-                    else { localCoreStartnt = j * chunk + chunkRem; localCoreSizent = chunk; }
+        //             if (j < chunkRem) { localCoreStartnt = j * (chunk + 1); localCoreSizent = chunk + 1; }
+        //             else { localCoreStartnt = j * chunk + chunkRem; localCoreSizent = chunk; }
 
-                    MPI_Recv(&fieldsOutnt[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
-            }
+        //             MPI_Recv(&fieldsOutnt[comp][localCoreStartnt], localCoreSizent, MPI_DOUBLE, j, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        //         }
+        //     }
 
-            // Output fields and R values to separate files
-            for (j = 0; j < nPos; j++) {
+        //     // Output fields and R values to separate files
+        //     for (j = 0; j < nPos; j++) {
 
-                // Compute R values
-                R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
-                R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
-                R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
-                R0nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) + pow(fieldsOutnt[4][j], 2) + pow(fieldsOutnt[5][j], 2) + pow(fieldsOutnt[6][j], 2) + pow(fieldsOutnt[7][j], 2);
+        //         // Compute R values
+        //         R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
+        //         R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
+        //         R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
+        //         R0nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) + pow(fieldsOutnt[4][j], 2) + pow(fieldsOutnt[5][j], 2) + pow(fieldsOutnt[6][j], 2) + pow(fieldsOutnt[7][j], 2);
                 
 
-                // Write field values to fields file, ensuring explicit output of 0.0
-                test_fieldsFile << fieldsOutnt[0][j] << "," << fieldsOutnt[1][j] << "," << fieldsOutnt[2][j] << "," 
-                                << fieldsOutnt[3][j] << "," << fieldsOutnt[4][j] << "," << fieldsOutnt[5][j] << "," 
-                                << fieldsOutnt[6][j] << "," << fieldsOutnt[7][j] << "\n";
-                test_rValuesFile << R0nt << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
-            }
+        //         // Write field values to fields file, ensuring explicit output of 0.0
+        //         test_fieldsFile << fieldsOutnt[0][j] << "," << fieldsOutnt[1][j] << "," << fieldsOutnt[2][j] << "," 
+        //                         << fieldsOutnt[3][j] << "," << fieldsOutnt[4][j] << "," << fieldsOutnt[5][j] << "," 
+        //                         << fieldsOutnt[6][j] << "," << fieldsOutnt[7][j] << "\n";
+        //         test_rValuesFile << R0nt << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
+        //     }
 
 
-            test_fieldsFile.close();
-            test_rValuesFile.close();
-        }
+        //     test_fieldsFile.close();
+        //     test_rValuesFile.close();
+        // }
 
-        else {
-            // Send field data to rank 0
-            for (comp = 0; comp < nb_fields; comp++) {
-                MPI_Send(&fields[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
-            }
-        }
+        // else {
+        //     // Send field data to rank 0
+        //     for (comp = 0; comp < nb_fields; comp++) {
+        //         MPI_Send(&fields[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
+        //     }
+        // }
     }
 
 
@@ -1120,7 +1128,9 @@ int main(int argc, char** argv) {
 
         //Loops over and evolves all assigned data points
         for (i = frontHaloSize; i < coreSize + frontHaloSize; i++) { 
-            
+            if (rank == 0 && ((i - frontHaloSize) % 10000000 == 0)) {
+                cout << "Rank 0: Processing i = " << (i - frontHaloSize) << " / " << coreSize << endl;
+                }
             // Skip boundary points if using fixed BCs
             if (bc_type == "fixed" && isBoundaryPoint[i]) {
                 continue;
@@ -1396,9 +1406,9 @@ int main(int argc, char** argv) {
         
 
 
-        if (TimeStep == 0 and rank == 0) {
-            if(monopoleDetect) { monopoleNumber << "NM\n"; } 
-            }
+        // if (TimeStep == 0 and rank == 0) {
+        //     if(monopoleDetect) { monopoleNumber << "NM\n"; } 
+        //     }
 
         
         // If calculating the energy, add it all up and output to text
@@ -1456,31 +1466,31 @@ int main(int argc, char** argv) {
 
         }
 
-        if (monopoleDetect) {
+        // if (monopoleDetect) {
 
-            if (rank == 0) {
+        //     if (rank == 0) {
 
-                double NM = localNM;
+        //         double NM = localNM;
 
-                for (i = 1; i < size; i++) {
+        //         for (i = 1; i < size; i++) {
 
-                    MPI_Recv(&localNM, 1, MPI_DOUBLE, i, 21, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    NM += localNM;
+        //             MPI_Recv(&localNM, 1, MPI_DOUBLE, i, 21, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        //             NM += localNM;
 
-                }
+        //         }
 
-                monopoleNumber << NM;
+        //         monopoleNumber << NM;
 
-            }
-            else {
+        //     }
+        //     else {
 
-                MPI_Send(&localNM, 1, MPI_DOUBLE, 0, 21, MPI_COMM_WORLD);
-            }
+        //         MPI_Send(&localNM, 1, MPI_DOUBLE, 0, 21, MPI_COMM_WORLD);
+        //     }
 
-        }
+        // }
 
         
-        if (rank == 0 and monopoleDetect) { monopoleNumber << "\n"; }
+        // if (rank == 0 and monopoleDetect) { monopoleNumber << "\n"; }
 
 
         if (rank == 0 and (calcEnergy or wallDetect)) { valsPerLoop << "\n"; }
@@ -1504,72 +1514,72 @@ int main(int argc, char** argv) {
         
     
         //Output the final fields.
-        if (finalOut and TimeStep == nt - 1) {
+        // if (finalOut and TimeStep == nt - 1) {
             
             
-            if (rank == 0) {
-                finalFields << "R0,R1,R2,R3,R4,R5,n1,n2,n3\n";
+        //     if (rank == 0) {
+        //         finalFields << "R0,R1,R2,R3,R4,R5,n1,n2,n3\n";
 
-                double R0, R1, R2, R3, R4, R5;
-                double n1, n2, n3;
-                int localCoreStart, localCoreSize;
+        //         double R0, R1, R2, R3, R4, R5;
+        //         double n1, n2, n3;
+        //         int localCoreStart, localCoreSize;
 
-                vector<vector<double>> fieldsOut(nb_fields, vector<double>(nPos, 0.0));
+        //         vector<vector<double>> fieldsOut(nb_fields, vector<double>(nPos, 0.0));
 
-                for (comp = 0; comp < nb_fields; comp++) {
+        //         for (comp = 0; comp < nb_fields; comp++) {
 
-                    for (i = 0; i < coreSize; i++) { fieldsOut[comp][i] = fields[comp][frontHaloSize + i]; }
+        //             for (i = 0; i < coreSize; i++) { fieldsOut[comp][i] = fields[comp][frontHaloSize + i]; }
 
-                    for (i = 1; i < size; i++) {
+        //             for (i = 1; i < size; i++) {
 
                         
-                        if (i < chunkRem) { localCoreStart = i * (chunk + 1); localCoreSize = chunk + 1; }
-                        else { localCoreStart = i * chunk + chunkRem; localCoreSize = chunk; }
+        //                 if (i < chunkRem) { localCoreStart = i * (chunk + 1); localCoreSize = chunk + 1; }
+        //                 else { localCoreStart = i * chunk + chunkRem; localCoreSize = chunk; }
 
-                        MPI_Recv(&fieldsOut[comp][localCoreStart], localCoreSize, MPI_DOUBLE, i, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        //                 MPI_Recv(&fieldsOut[comp][localCoreStart], localCoreSize, MPI_DOUBLE, i, comp, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-                    }
+        //             }
 
-                }
-
-
-                for (i = 0; i < nPos; i++) {
-
-                    R0 = pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) + pow(fieldsOut[2][i], 2) + pow(fieldsOut[3][i], 2) + pow(fieldsOut[4][i], 2) + pow(fieldsOut[5][i], 2) + pow(fieldsOut[6][i], 2) + pow(fieldsOut[7][i], 2);
-                    R1 = 2 * (fieldsOut[0][i] * fieldsOut[4][i] + fieldsOut[1][i] * fieldsOut[5][i] + fieldsOut[2][i] * fieldsOut[6][i] + fieldsOut[3][i] * fieldsOut[7][i]);
-                    R2 = 2 * (fieldsOut[0][i] * fieldsOut[5][i] - fieldsOut[1][i] * fieldsOut[4][i] + fieldsOut[2][i] * fieldsOut[7][i] - fieldsOut[3][i] * fieldsOut[6][i]);
-                    R3 = pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) + pow(fieldsOut[2][i], 2) + pow(fieldsOut[3][i], 2) - pow(fieldsOut[4][i], 2) - pow(fieldsOut[5][i], 2) - pow(fieldsOut[6][i], 2) - pow(fieldsOut[7][i], 2);
-                    R4 = 2 * (fieldsOut[0][i] * fieldsOut[6][i] - fieldsOut[1][i] * fieldsOut[7][i] - fieldsOut[2][i] * fieldsOut[4][i] + fieldsOut[3][i] * fieldsOut[5][i]);
-                    R5 = 2 * (fieldsOut[0][i] * fieldsOut[7][i] + fieldsOut[1][i] * fieldsOut[6][i] - fieldsOut[2][i] * fieldsOut[5][i] - fieldsOut[3][i] * fieldsOut[4][i]);
-
-                    n1 = -2 * (fieldsOut[0][i] * fieldsOut[2][i] + fieldsOut[1][i] * fieldsOut[3][i] + fieldsOut[4][i] * fieldsOut[6][i] + fieldsOut[5][i] * fieldsOut[7][i]);
-                    n2 = -2 * (fieldsOut[0][i] * fieldsOut[3][i] - fieldsOut[1][i] * fieldsOut[2][i] + fieldsOut[4][i] * fieldsOut[7][i] - fieldsOut[5][i] * fieldsOut[6][i]);
-                    n3 = -1 * (pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) - pow(fieldsOut[2][i], 2) - pow(fieldsOut[3][i], 2) + pow(fieldsOut[4][i], 2) + pow(fieldsOut[5][i], 2) - pow(fieldsOut[6][i], 2) - pow(fieldsOut[7][i], 2));
+        //         }
 
 
-                    finalFields << R0 << "," << R1 << "," << R2 << "," << R3 << "," << R4 << "," << R5 << "," << n1 << "," << n2 << "," << n3 << "\n";
+        //         for (i = 0; i < nPos; i++) {
+
+        //             R0 = pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) + pow(fieldsOut[2][i], 2) + pow(fieldsOut[3][i], 2) + pow(fieldsOut[4][i], 2) + pow(fieldsOut[5][i], 2) + pow(fieldsOut[6][i], 2) + pow(fieldsOut[7][i], 2);
+        //             R1 = 2 * (fieldsOut[0][i] * fieldsOut[4][i] + fieldsOut[1][i] * fieldsOut[5][i] + fieldsOut[2][i] * fieldsOut[6][i] + fieldsOut[3][i] * fieldsOut[7][i]);
+        //             R2 = 2 * (fieldsOut[0][i] * fieldsOut[5][i] - fieldsOut[1][i] * fieldsOut[4][i] + fieldsOut[2][i] * fieldsOut[7][i] - fieldsOut[3][i] * fieldsOut[6][i]);
+        //             R3 = pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) + pow(fieldsOut[2][i], 2) + pow(fieldsOut[3][i], 2) - pow(fieldsOut[4][i], 2) - pow(fieldsOut[5][i], 2) - pow(fieldsOut[6][i], 2) - pow(fieldsOut[7][i], 2);
+        //             R4 = 2 * (fieldsOut[0][i] * fieldsOut[6][i] - fieldsOut[1][i] * fieldsOut[7][i] - fieldsOut[2][i] * fieldsOut[4][i] + fieldsOut[3][i] * fieldsOut[5][i]);
+        //             R5 = 2 * (fieldsOut[0][i] * fieldsOut[7][i] + fieldsOut[1][i] * fieldsOut[6][i] - fieldsOut[2][i] * fieldsOut[5][i] - fieldsOut[3][i] * fieldsOut[4][i]);
+
+        //             n1 = -2 * (fieldsOut[0][i] * fieldsOut[2][i] + fieldsOut[1][i] * fieldsOut[3][i] + fieldsOut[4][i] * fieldsOut[6][i] + fieldsOut[5][i] * fieldsOut[7][i]);
+        //             n2 = -2 * (fieldsOut[0][i] * fieldsOut[3][i] - fieldsOut[1][i] * fieldsOut[2][i] + fieldsOut[4][i] * fieldsOut[7][i] - fieldsOut[5][i] * fieldsOut[6][i]);
+        //             n3 = -1 * (pow(fieldsOut[0][i], 2) + pow(fieldsOut[1][i], 2) - pow(fieldsOut[2][i], 2) - pow(fieldsOut[3][i], 2) + pow(fieldsOut[4][i], 2) + pow(fieldsOut[5][i], 2) - pow(fieldsOut[6][i], 2) - pow(fieldsOut[7][i], 2));
 
 
-                }
+        //             finalFields << R0 << "," << R1 << "," << R2 << "," << R3 << "," << R4 << "," << R5 << "," << n1 << "," << n2 << "," << n3 << "\n";
 
 
-
-            }
-
-            else {
-
-                for (comp = 0; comp < nb_fields; comp++) {
-
-                    MPI_Send(&fields[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
-
-                }
-            }
+        //         }
 
 
 
+        //     }
+
+        //     else {
+
+        //         for (comp = 0; comp < nb_fields; comp++) {
+
+        //             MPI_Send(&fields[comp][frontHaloSize], coreSize, MPI_DOUBLE, 0, comp, MPI_COMM_WORLD);
+
+        //         }
+        //     }
 
 
-        }
+
+
+
+        // }
 
         // Gif Output
 
@@ -1631,25 +1641,18 @@ int main(int argc, char** argv) {
         */
 
 
-        if (makeGif and TimeStep % sep_saveFreq == 0) {
+        if (makeGif && (TimeStep % sep_saveFreq == 0) && (TimeStep % R_saveFreq == 0)) {
+
 
             if (rank == 0) {
 
-                
-                ofstream rValuesFile;
-                ostringstream dummyStream;
-                ostream* rValuesStreamPtr = nullptr;
-
-                if (TimeStep % R_saveFreq == 0) {
+                cout << "Making gif output at timestep " << TimeStep << endl;
                     string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
-                    rValuesFile.open(rValuesPath.c_str());
+                ofstream rValuesFile(rValuesPath.c_str());
                     rValuesFile << "R1nt,R2nt,R3nt\n";
                     rValuesFile << fixed << setprecision(6);
-                    rValuesStreamPtr = &rValuesFile;
-                } else {
-                    dummyStream.str(""); // Clear any previous content
-                    rValuesStreamPtr = &dummyStream;
-                }
+
+            
                 // Create files for fields and R values
                 
                 
@@ -1689,16 +1692,16 @@ int main(int argc, char** argv) {
                     R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
 
                     // Write R values to R values file, ensuring explicit output of 0.0
-                    (*rValuesStreamPtr) << R1nt << "," << R2nt << "," << R3nt << "\n";
+                    rValuesFile << R1nt << "," << R2nt << "," << R3nt << "\n";
 
                     if (ic_type == "monopole") {
                     monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
                     }
                 }
 
-                if (TimeStep % R_saveFreq == 0) {
-                    rValuesFile.close();
-                }
+                
+                rValuesFile.close();
+                
 
                                 // Monopole tracking for monopole initial conditions
                 if (ic_type == "monopole") {
@@ -1850,10 +1853,10 @@ int main(int argc, char** argv) {
     // Deletes redundent outpur files if not used:
     if (rank == 0) {
 
-        if (!finalOut) {
-            finalFields.close();
-            remove(finalFieldPath.c_str());
-        }
+        // if (!finalOut) {
+        //     finalFields.close();
+        //     remove(finalFieldPath.c_str());
+        // }
 
         if (!calcEnergy and !wallDetect) { 
             valsPerLoop.close();

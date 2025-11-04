@@ -6,12 +6,12 @@ from pathlib import Path
 import time
 
 # Simulation parameters
-DATA_DIR = Path("/share/centaurus_nas/jmg_temp/sep_only/")
-OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/sep_only/")
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/fine_sep/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/fine_sep/")
 nx, ny, nz = 512, 512, 512  # Grid dimensions from C++ code
 dx, dy, dz = 0.5, 0.5, 0.5  # Grid spacings
-gamma_mult = 0.5
-gamma_mult_2 = 0 # From C++ code
+# gamma_mult = 0.5
+# gamma_mult_2 = 0 # From C++ code
 seed = 73  # From C++ code
 
 # Create output directory
@@ -218,14 +218,20 @@ def plot_energy_vs_separation():
               f'{gamma_str}, Grid: {grid_size}³, Seed: {seed_val}', fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=11)
+    max_idx = np.argmax(energy_corrected)
+    max_en_separation = data['separation'].iloc[max_idx]
+    max_energy_value = energy_corrected.iloc[max_idx]
+    max_real_separation = 2 * max_en_separation * dz * nz
     
     # Add simulation info as text box
     info_text = (f'Grid: {grid_size}³\n'
                 f'{gamma_str}\n'
                 f'Seed: {seed_val}\n'
                 f'Data points: {len(data)}\n'
-                f'Vacuum energy subtracted: {vacuum_energy:.6f}')
-    plt.text(0.02, 0.98, info_text, transform=plt.gca().transAxes, 
+                f'Vacuum energy subtracted: {vacuum_energy:.6f}\n'
+                f'Max energy at separation: {max_en_separation:.6f}'
+                f' (real: {max_real_separation:.3f})\n')
+    plt.text(0.02, 0.18, info_text, transform=plt.gca().transAxes, 
             fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
     
@@ -305,6 +311,19 @@ def create_energy_density_slice_plot(data, separation, gamma_info, mode, grid_si
     # Plot energy density slice
     im = plt.imshow(energy_slice.T, origin='lower', extent=extent,
                    aspect='auto', cmap='plasma', interpolation='bilinear')
+
+    # --- Add max energy value as text on the plot ---
+    max_energy = np.max(energy_slice)
+    plt.text(
+        0.98, 0.02,
+        f"Max energy: {max_energy:.2e}",
+        transform=plt.gca().transAxes,
+        fontsize=12,
+        color='white',
+        ha='right',
+        va='bottom',
+        bbox=dict(boxstyle='round', facecolor='black', alpha=0.6)
+    )
 
     # Add boundary box showing grid points 1 from edge (where vacuum energy applies)
     boundary_linewidth = 1.5
@@ -543,7 +562,7 @@ if __name__ == "__main__":
     print_progress(1, total_steps, "Initializing analysis...")
     print(f"Looking for files in: {DATA_DIR}")
     print(f"Output directory: {OUTPUT_DIR}")
-    print(f"Simulation parameters: Grid={nx}³, Default γ={gamma_mult}π, Seed={seed}")
+    print(f"Simulation parameters: Grid={nx}³, Seed={seed}")
     
     if not DATA_DIR.exists():
         print(f"ERROR: Data directory {DATA_DIR} does not exist!")
