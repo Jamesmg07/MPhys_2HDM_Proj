@@ -10,14 +10,14 @@ import time  # Add timing
 
 
 # Data directories  
-DATA_DIR = Path("/share/centaurus_nas/jmg_temp/05pi_large_new/")
-OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/05pi_large_new/")
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
 
 
 
 # Default simulation parameters (fallback values)
 DEFAULT_PARAMS = {
-    'nx': 128, 'ny': 128, 'nz': 128,
+    'nx': 0, 'ny': 0, 'nz': 0,
     'dx': 0.5, 'dy': 0.5, 'dz': 0.5,
     'dt': 0.1, 'nt': 320,
     'gamma_mult': 0.495, 'offset_from_centre': 0.25,
