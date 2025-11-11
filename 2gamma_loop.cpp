@@ -963,26 +963,28 @@ int main(int argc, char** argv) {
                     
                         // **NEW: Save detailed energy density (heavy, optional)**
                     
-                        string energyDensityPath = out_path + "energy_density_" + outTag_current + ".csv";
+                        string energyDensityPath = out_path + "energy_density_xzslice_" + outTag_current + ".csv";
                         ofstream energyFile(energyDensityPath.c_str());
-                        energyFile << "x,y,z,energy_density" << endl;
+                        energyFile << "x,z,energy_density" << endl;
                         energyFile << fixed << setprecision(6);
                         
                         // Output energy density for each grid point
+                        int y_centre = ny / 2;
                         for (j = 0; j < nPos; j++) {
                             int k_coord = j % nz;
                             int j_coord = (j / nz) % ny;
                             int i_coord = j / (ny * nz);
                             
-                            double x_pos = i_coord * dx;
-                            double y_pos = j_coord * dy;
-                            double z_pos = k_coord * dz;
-                            
-                            energyFile << x_pos << "," << y_pos << "," << z_pos << "," << full_energy_density[j] << endl;
+                            if (j_coord == y_centre) {
+                                double x_pos = i_coord * dx;
+                                double z_pos = k_coord * dz;
+                                energyFile << x_pos << "," << z_pos << "," << full_energy_density[j] << endl;
+
+                            } 
                         }
                         
                         energyFile.close();
-                        cout << "Energy density data saved for separation " << current_separation << endl;
+                        cout << "Energy density xz-slice data saved for separation " << current_separation << endl;
                     }
                     
                 } else {
