@@ -56,7 +56,7 @@ def plot_multibox_energy_comparison(data_dict):
     """
     Plot energy vs separation for all box sizes on the same axes.
     One plot per unique (gamma1, gamma2) combination.
-    Returns dictionary of maximum separations for each box size.
+    Returns dictionary of maximum separations and all plotted data for each box size.
     """
     
     # Get all unique gamma combinations from all datasets
@@ -69,8 +69,9 @@ def plot_multibox_energy_comparison(data_dict):
     all_gamma_pairs = sorted(list(all_gamma_pairs))
     print(f"\n  Found {len(all_gamma_pairs)} unique (γ₁, γ₂) combinations")
     
-    # Store maximum separations for each box size and gamma combination
+    # Store maximum separations and all plotted data for each box size and gamma combination
     max_separations = {}
+    all_plotted_data = {}
     
     # Define colors and markers for different box sizes
     box_colors = {128: 'blue', 256: 'green', 512: 'orange', 1024: 'red'}
@@ -123,9 +124,13 @@ def plot_multibox_energy_comparison(data_dict):
             max_sep = real_separations[max_idx]
             max_energy = energies_corrected[max_idx]
             
-            # Store maximum separation
+            # Store maximum separation and all plotted data
             key = (gamma1, gamma2, box_size)
-            max_separations[key] = max_sep
+            max_separations[key] = (max_sep, max_energy)
+            all_plotted_data[key] = {
+                'separations': real_separations,
+                'energies': energies_corrected
+            }
             
             print(f"    Box {box_size}³: max at separation={max_sep:.3f} (real units)")
             
@@ -174,10 +179,10 @@ def plot_multibox_energy_comparison(data_dict):
         print(f"    Saved: {filename}")
         plt.close()
     
-    return max_separations
+    return max_separations, all_plotted_data
 
-def save_maximum_separations(max_separations):
-    """Save maximum separation values to a text file"""
+def save_maximum_separations(max_separations, all_plotted_data):
+    """Save maximum separation values and all plotted data to text files"""
     
     output_file = OUTPUT_DIR / f'maximum_separations_seed{seed}.txt'
     
@@ -193,30 +198,65 @@ def save_maximum_separations(max_separations):
         
         for gamma1, gamma2 in gamma_pairs:
             f.write(f"\nγ₁={gamma1}π, γ₂={gamma2}π:\n")
-            f.write("-" * 50 + "\n")
+            f.write("-" * 70 + "\n")
             
             for box_size in BOX_SIZES:
                 key = (gamma1, gamma2, box_size)
                 if key in max_separations:
-                    sep = max_separations[key]
-                    f.write(f"  Box size {box_size:4d}³:  max separation = {sep:8.4f}\n")
+                    sep, energy = max_separations[key]
+                    f.write(f"  Box size {box_size:4d}³:  max separation = {sep:8.4f},  "
+                           f"vacuum-corrected energy = {energy:12.6e}\n")
                 else:
                     f.write(f"  Box size {box_size:4d}³:  no data\n")
     
     print(f"\n  Maximum separations saved to: {output_file}")
     
+    # Save all plotted data to separate files for each gamma combination
+    print("\n  Saving all plotted data...")
+    gamma_pairs = sorted(set((g1, g2) for g1, g2, _ in all_plotted_data.keys()))
+    
+    for gamma1, gamma2 in gamma_pairs:
+        gamma1_str = str(gamma1).replace('.', 'p')
+        gamma2_str = str(gamma2).replace('.', 'p')
+        data_file = OUTPUT_DIR / f'plotted_data_gamma1_{gamma1_str}pi_gamma2_{gamma2_str}pi_seed{seed}.txt'
+        
+        with open(data_file, 'w') as f:
+            f.write(f"All Plotted Data: γ₁={gamma1}π, γ₂={gamma2}π\n")
+            f.write("=" * 90 + "\n")
+            f.write(f"Grid spacing: dx = dy = dz = {dx}\n")
+            f.write(f"Seed: {seed}\n")
+            f.write("=" * 90 + "\n\n")
+            
+            for box_size in BOX_SIZES:
+                key = (gamma1, gamma2, box_size)
+                if key in all_plotted_data:
+                    f.write(f"\nBox size {box_size}³:\n")
+                    f.write("-" * 90 + "\n")
+                    f.write(f"{'Separation (real units)':>25}  {'Vacuum-Corrected Energy':>25}\n")
+                    f.write("-" * 90 + "\n")
+                    
+                    separations = all_plotted_data[key]['separations']
+                    energies = all_plotted_data[key]['energies']
+                    
+                    for sep, energy in zip(separations, energies):
+                        f.write(f"{sep:25.6f}  {energy:25.12e}\n")
+                    
+                    f.write("\n")
+        
+        print(f"    Saved plotted data to: {data_file.name}")
+    
     # Also print summary to console
-    print("\n" + "="*70)
+    print("\n" + "="*90)
     print("SUMMARY: Maximum Energy Separations (Real Units)")
-    print("="*70)
+    print("="*90)
     
     for gamma1, gamma2 in gamma_pairs:
         print(f"\nγ₁={gamma1}π, γ₂={gamma2}π:")
         for box_size in BOX_SIZES:
             key = (gamma1, gamma2, box_size)
             if key in max_separations:
-                sep = max_separations[key]
-                print(f"  {box_size:4d}³: {sep:8.4f}")
+                sep, energy = max_separations[key]
+                print(f"  {box_size:4d}³: separation = {sep:8.4f}, energy = {energy:12.6e}")
             else:
                 print(f"  {box_size:4d}³: no data")
 
@@ -261,14 +301,14 @@ if __name__ == "__main__":
         exit()
     
     print_progress(3, total_steps, "Creating multi-box comparison plots...")
-    max_separations = plot_multibox_energy_comparison(data_dict)
+    max_separations, all_plotted_data = plot_multibox_energy_comparison(data_dict)
     
     if not max_separations:
         print("ERROR: No maximum separations found!")
         exit()
     
-    # Save maximum separations to file
-    save_maximum_separations(max_separations)
+    # Save maximum separations and all plotted data to files
+    save_maximum_separations(max_separations, all_plotted_data)
     
     print(f"\nAll plots saved to: {OUTPUT_DIR}")
     print("="*60)

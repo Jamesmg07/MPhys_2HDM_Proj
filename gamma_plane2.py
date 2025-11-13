@@ -90,10 +90,6 @@ def plot_energy_vs_separation_grouped_by_gamma1(data, grid_size, seed_val):
     Returns kappa values for each (gamma1, gamma2) pair.
     """
     
-    # Calculate vacuum energy correction
-    vacuum_energy = (1/8) * ((grid_size) * dx)**3
-    print(f"\n  Vacuum energy correction: {vacuum_energy:.6f}")
-    
     # Get unique gamma values
     gamma1_values = sorted(data['gamma_mult_1'].unique())
     gamma2_values = sorted(data['gamma_mult_2'].unique())
@@ -125,7 +121,7 @@ def plot_energy_vs_separation_grouped_by_gamma1(data, grid_size, seed_val):
             
             # Get separation and energy
             separations = group_data['separation'].values
-            energies = group_data['total_energy'].values + vacuum_energy
+            energies = group_data['total_energy'].values
             
             # Convert to real separation
             real_separations = 2 * separations * dz * nz
@@ -158,7 +154,7 @@ def plot_energy_vs_separation_grouped_by_gamma1(data, grid_size, seed_val):
         
         # Customize plot
         ax.set_xlabel('Monopole-Antimonopole Separation', fontsize=13)
-        ax.set_ylabel('Total Energy (Vacuum Corrected)', fontsize=13)
+        ax.set_ylabel('Total Energy', fontsize=13)
         ax.set_title(f'Energy vs Separation for γ₁={gamma1}π\n'
                     f'Grid: {grid_size}³, Seed: {seed_val}',
                     fontsize=15, fontweight='bold')
@@ -171,7 +167,6 @@ def plot_energy_vs_separation_grouped_by_gamma1(data, grid_size, seed_val):
         info_text = (f'Grid: {grid_size}³\n'
                     f'γ₁ = {gamma1}π\n'
                     f'Seed: {seed_val}\n'
-                    f'Vacuum correction: {vacuum_energy:.6f}\n'
                     f'κ = 0.0: max at left\n'
                     f'κ = 0.5: max in middle\n'
                     f'κ = 1.0: max at right')

@@ -81,7 +81,7 @@ def plot_energy_vs_separation_with_fits(data, grid_size, seed_val):
         
         # Get separation and energy
         separations = group_data['separation'].values
-        energies = group_data['total_energy'].values + vacuum_energy
+        energies = group_data['total_energy'].values
         
         # Convert to real separation
         real_separations = 2 * separations * dz * nz
@@ -124,7 +124,7 @@ def plot_energy_vs_separation_with_fits(data, grid_size, seed_val):
             plt.plot(s_smooth, e_smooth, 'r-', linewidth=2, label='Quadratic fit')
             
             plt.xlabel('Monopole-Antimonopole Separation', fontsize=12)
-            plt.ylabel('Total Energy (Vacuum Corrected)', fontsize=12)
+            plt.ylabel('Total Energy', fontsize=12)
             plt.title(f'Energy vs Separation with Quadratic Fit\n'
                      f'γ₁={gamma1}π, γ₂={gamma2}π, Grid: {grid_size}³, Seed: {seed_val}',
                      fontsize=14)
@@ -144,8 +144,7 @@ def plot_energy_vs_separation_with_fits(data, grid_size, seed_val):
             # Add info text box
             info_text = (f'Grid: {grid_size}³\n'
                         f'Seed: {seed_val}\n'
-                        f'Data points: {len(real_separations)}\n'
-                        f'Vacuum correction: {vacuum_energy:.6f}')
+                        f'Data points: {len(real_separations)}')
             plt.text(0.02, 0.98, info_text, transform=plt.gca().transAxes,
                     fontsize=10, verticalalignment='top',
                     bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
