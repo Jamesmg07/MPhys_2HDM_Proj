@@ -920,8 +920,10 @@ int main(int argc, char** argv) {
                                     l4_m_l5 * phi1_dot_phi2 * phi1_dot_phi2 +
                                     l4_p_l5 * phi1_cross_phi2 * phi1_cross_phi2);
 
-                    energy_density[i - frontHaloSize] = local_energy;
-                    local_total_energy += local_energy * dx * dy * dz;  // Accumulate total energy
+                    double corrected_energy = local_energy + 1.0/8.0;
+                    energy_density[i - frontHaloSize] = corrected_energy;
+                    local_total_energy += corrected_energy * dx * dy * dz;  // Accumulate total energy
+
                 }
 
                 double global_total_energy = 0.0;

@@ -18,14 +18,14 @@ const string out_path = "/share/centaurus_nas/jmg_temp/energy_vs_gridsize/";
 
 
 // Fixed values for consistent comparison
-const double separation = 0.25; 
+const double physical_separation = 64; 
 const double gamma_mult_1 = 0.0; 
 const double gamma_mult_2 = 0.0; 
 
-const vector<long long int> grid_sizes = {128, 256, 512, 1024}; // Add/remove as needed
+const vector<long long int> grid_sizes = {256, 512, 1024, 2048, 4096}; // Add/remove as needed
 long long int nPos;
 
-const vector<double> dx_values = {0.5}; //Grid Spacings
+const vector<double> dx_values = {0.5, 1}; //Grid Spacings
 double dx ;
 double dy ;
 double dz ;
@@ -111,7 +111,81 @@ const double bbeta = 0; // Scale factor^bbeta is the factor that multiplies the 
 const double scaling = 0; // Power law scaling of the scale factor wrt tau. Using conformal time so rad dom is scaling=1 while matter dom is scaling=2. scaling=0 returns a static universe.
 
 
-
+void writeParametersFile(const string& output_path, int seed) {
+    ofstream paramFile;
+    string paramPath = output_path + "simulation_parameters_seed=" + to_string(seed) + ".txt";
+    paramFile.open(paramPath.c_str());
+    
+    if (!paramFile.is_open()) {
+        cout << "Warning: Could not create parameters file: " << paramPath << endl;
+        return;
+    }
+    
+    paramFile << "# Simulation Parameters for Energy vs Grid Size Study\n";
+    paramFile << "seed=" << seed << "\n";
+    paramFile << "physical_separation=" << physical_separation << "\n";
+    paramFile << "gamma_mult_1=" << gamma_mult_1 << "\n";
+    paramFile << "gamma_mult_2=" << gamma_mult_2 << "\n";
+    
+    paramFile << "# Grid sizes\n";
+    paramFile << "grid_sizes=";
+    for (size_t i = 0; i < grid_sizes.size(); i++) {
+        paramFile << grid_sizes[i];
+        if (i < grid_sizes.size() - 1) paramFile << ",";
+    }
+    paramFile << "\n";
+    
+    paramFile << "# dx values\n";
+    paramFile << "dx_values=";
+    for (size_t i = 0; i < dx_values.size(); i++) {
+        paramFile << dx_values[i];
+        if (i < dx_values.size() - 1) paramFile << ",";
+    }
+    paramFile << "\n";
+    
+    paramFile << "# 2HDM Parameters\n";
+    paramFile << "m_h=" << m_h << "\n";
+    paramFile << "V_sm=" << V_sm << "\n";
+    paramFile << "m_H=" << m_H << "\n";
+    paramFile << "m_A=" << m_A << "\n";
+    paramFile << "m_H_pm=" << m_H_pm << "\n";
+    paramFile << "mixing_angle_a=" << a << "\n";
+    paramFile << "mixing_angle_b=" << b << "\n";
+    
+    // ADD MISSING CALCULATED PARAMETERS
+    paramFile << "# Calculated 2HDM Parameters\n";
+    paramFile << "mu_1_sq=" << mu_1_sq << "\n";
+    paramFile << "mu_2_sq=" << mu_2_sq << "\n";
+    paramFile << "lambda_1=" << lambda_1 << "\n";
+    paramFile << "lambda_2=" << lambda_2 << "\n";
+    paramFile << "lambda_3=" << lambda_3 << "\n";
+    paramFile << "l4_m_l5=" << l4_m_l5 << "\n";
+    paramFile << "l4_p_l5=" << l4_p_l5 << "\n";
+    paramFile << "v1=" << v1 << "\n";
+    paramFile << "v2=" << v2 << "\n";
+    
+    paramFile << "# Monopole Parameters\n";
+    paramFile << "monopole_grid_spacing=" << monopole_grid_spacing << "\n";
+    paramFile << "monopole_prefactor=" << monopole_prefactor << "\n";
+    paramFile << "monopole1_vx=" << monopole1_vx << "\n";
+    paramFile << "monopole1_vy=" << monopole1_vy << "\n";
+    paramFile << "monopole1_vz=" << monopole1_vz << "\n";
+    paramFile << "monopole2_vx=" << monopole2_vx << "\n";
+    paramFile << "monopole2_vy=" << monopole2_vy << "\n";
+    paramFile << "monopole2_vz=" << monopole2_vz << "\n";
+    paramFile << "monopole1_x_offset=" << monopole1_x_offset << "\n";
+    paramFile << "monopole1_y_offset=" << monopole1_y_offset << "\n";
+    paramFile << "monopole2_x_offset=" << monopole2_x_offset << "\n";
+    paramFile << "monopole2_y_offset=" << monopole2_y_offset << "\n";
+    
+    // ADD FILE PATHS
+    paramFile << "# File Paths\n";
+    paramFile << "input_path=" << inp_path << "\n";
+    paramFile << "output_path=" << out_path << "\n";
+    
+    paramFile.close();
+    cout << "Parameters written to: " << paramPath << endl;
+}
 
 
 
@@ -145,10 +219,12 @@ int main(int argc, char** argv) {
         cout << "dx values: ";
         for (auto dx : dx_values) cout << dx << " ";
         cout << endl;
-        cout << "Fixed separation: " << separation << endl;
+        cout << "Fixed physical separation: " << physical_separation << endl;
         cout << "Fixed gamma parameters: " << gamma_mult_1 << ", " << gamma_mult_2 << endl;
         cout << "Total iterations: " << dx_values.size() * grid_sizes.size() << endl;
+        writeParametersFile(out_path, seed);
     }
+    
 
     // Load monopole profile data
     string fields_ic_data = inp_path + "SOR_Fields.txt";
@@ -201,8 +277,10 @@ int main(int argc, char** argv) {
             long long int nz = grid_size;
             long long int nPos = nx * ny * nz;
 
+            double grid_separation = physical_separation / dz;
             if (rank == 0) {
                 cout << "Grid: " << nx << "x" << ny << "x" << nz << " (total points: " << nPos << ")" << endl;
+                cout << "Physical separation: " << physical_separation << ", Grid separation: " << grid_separation << endl;
             }
 
             // MPI domain decomposition (same as 2gamma_loop.cpp)
@@ -253,11 +331,11 @@ int main(int argc, char** argv) {
             // Calculate monopole positions
             double x1 = 0.5 * (nx - 1) + monopole1_x_offset;
             double y1 = 0.5 * (ny - 1) + monopole1_y_offset;
-            double z1 = 0.5 * (nz - 1) + separation * nz;
+            double z1 = 0.5 * (nz - 1) + 0.5* grid_separation;
             
             double x2 = 0.5 * (nx - 1) + monopole2_x_offset;
             double y2 = 0.5 * (ny - 1) + monopole2_y_offset;
-            double z2 = 0.5 * (nz - 1) - separation * nz;
+            double z2 = 0.5 * (nz - 1) - 0.5* grid_separation;
 
             // Calculate boost parameters
             double v1_mag = sqrt(monopole1_vx*monopole1_vx + monopole1_vy*monopole1_vy + monopole1_vz*monopole1_vz);
@@ -663,7 +741,11 @@ int main(int argc, char** argv) {
             double global_total_energy = 0.0;
             MPI_Reduce(&local_total_energy, &global_total_energy, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+            double vev_norm = (1.0/8.0) * pow((nx) * dx, 3.0);
+            global_total_energy += vev_norm;
+
             if (rank == 0) {
+
                 masterEnergyFile << dx << "," << nx << "," << global_total_energy << endl;
                 cout << "dx=" << dx << ", grid=" << nx << " -> Total Energy: " << global_total_energy << endl;
             }
