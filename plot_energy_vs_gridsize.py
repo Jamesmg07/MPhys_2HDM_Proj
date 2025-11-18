@@ -78,10 +78,8 @@ def plot_energy_vs_gridsize(data_file_path, output_dir=None):
                 label=f'dx = {dx}')
     
     # Formatting
-    plt.xlabel('Grid Size (N×N×N)', fontsize=14)
+    plt.xlabel('Grid Size (N)', fontsize=14)  
     plt.ylabel('Total Energy', fontsize=14)
-    plt.xscale('log')
-    plt.yscale('log')
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=12)
     
