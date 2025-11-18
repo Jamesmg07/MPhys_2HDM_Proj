@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 # Simulation parameters
-DATA_DIR = Path("/share/centaurus_nas/mkza/Week_6/2gamma_loop_large/")
+DATA_DIR = Path("/share/centaurus_nas/mkza/Week_7/conv_test_VEVcorrected/")
 OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Plots/")
 dx, dy, dz = 0.7, 0.7, 0.7  # Grid spacings (same for all box sizes)
 seed = 73  # From C++ code
@@ -109,7 +109,7 @@ def plot_multibox_energy_comparison(data_dict):
             
             # Calculate vacuum energy correction for this box size
             vacuum_energy = (1/8) * ((box_size) * dx)**3
-            energies_corrected = energies + vacuum_energy
+            energies_corrected = energies
             
             # Convert to real separation
             real_separations = 2 * separations * dz * box_size
