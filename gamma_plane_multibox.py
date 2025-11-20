@@ -7,7 +7,7 @@ from pathlib import Path
 # Simulation parameters
 DATA_DIR = Path("/share/centaurus_nas/mkza/Week_7/conv_test_VEVcorrected/")
 OUTPUT_DIR = Path("/share/centaurus_nas/mkza/Plots/")
-dx, dy, dz = 0.7, 0.7, 0.7  # Grid spacings (same for all box sizes)
+dx, dy, dz = 0.5, 0.5, 0.5  # Grid spacings (same for all box sizes)
 seed = 73  # From C++ code
 
 # Box sizes to analyze
