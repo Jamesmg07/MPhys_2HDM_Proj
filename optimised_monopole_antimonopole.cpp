@@ -15,18 +15,18 @@ const double pi = 4.0 * atan(1.0);
 
 
 const string inp_path = "/share/centaurus_nas/jmg_temp/"; // Input Directory Location - relative path
-const string out_path = "/share/centaurus_nas/jmg_temp/05pi_attract/"; // Data Directory Location - fixed path
+const string out_path = "/share/centaurus_nas/jmg_temp/1024_repel/"; // Data Directory Location - fixed path
 
 
 //Simulation paramaters (adjustable):
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 512; // Grid Dimensions
-const long long int ny = 512;
-const long long int nz = 512; // Set nz = 1 for 2D.
+const long long int nx = 1024; // Grid Dimensions
+const long long int ny = 1024;
+const long long int nz = 1024; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
-const bool save_slices_only = true
+const bool save_slices_only = true;
 
 const double dx = 0.5; //Grid Spacings
 const double dy = 0.5;
@@ -35,14 +35,14 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = 2000;
-const int R_saveTot = 10;
+const int R_saveTot = 5;
 
 const int seed = 73;
 
 const double gamma_mult = 0.5;
 // Monopole/Antimonopole Configuration Parameters
 
-const double offset_from_centre = 0.25; // Offset of monopole/antimonopole from centre as a fraction of box size
+const double offset_from_centre = 0.3; // Offset of monopole/antimonopole from centre as a fraction of box size
 // * nz;  in z direction 
 
 // Monopole Boost Parameters (add after monopole position parameters)
@@ -1694,7 +1694,7 @@ int main(int argc, char** argv) {
 
                 if (save_slices_only) {
                     // Calculate center coordinates
-                    int centre_y = 0.5 * (ny - 1);
+                    int center_y = 0.5 * (ny - 1);
                     int center_z = 0.5 * (nz - 1);
                     
                     // Save XY slice at center z

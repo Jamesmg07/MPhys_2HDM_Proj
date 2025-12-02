@@ -11,16 +11,15 @@
 using namespace std;
 const double pi = 4.0 * atan(1.0);
 
-// === CONFIGURATION: Set box size here ===
-const long long int BOX_SIZE = 256;  // Change this for different runs: 128, 256, 512, 1024
+// === CONFIGURATION ===
+const long long int BOX_SIZE = 1024; 
 
 const string inp_path = "./";
 const string out_path = "/share/centaurus_nas/jmg_temp/dedr_vs_r/";
 
-// Separation range - need fine resolution for accurate derivatives
-const double SEP_START = 0.05;   // Starting separation (fraction of box)
-const double SEP_END = 0.35;     // Ending separation (fraction of box)
-const double SEP_STEP = 0.02;    // Step size for separation scan
+const double SEP_START = 0.0125;
+const double SEP_END = 0.30;
+const double SEP_STEP = 0.005;
 
 const long long int nx = BOX_SIZE;
 const long long int ny = BOX_SIZE;
@@ -33,20 +32,12 @@ const double dz = 0.5;
 
 const int seed = 73;
 
-// === GAMMA CONFIGURATION ===
-// Set TEST_SINGLE_GAMMA = true to test only cases where gamma1 == gamma2
-// Set TEST_SINGLE_GAMMA = false to test all combinations of gamma1 and gamma2
 const bool TEST_SINGLE_GAMMA = true;
+const vector<double> gamma_mult_values = {0, 1.0/3.0, 0.5, 1.0};
+const vector<double> gamma_mult_1_values = {0, 1.0/3.0, 0.5, 1.0};
+const vector<double> gamma_mult_2_values = {0, 1.0/3.0, 0.5, 1.0};
 
-// Gamma parameters to test
-const vector<double> gamma_mult_values = {0, 0.5, 1.0};  // Used when TEST_SINGLE_GAMMA = true
-
-
-
-const vector<double> gamma_mult_1_values = {0, 0.5, 1.0};  // Used when TEST_SINGLE_GAMMA = false
-const vector<double> gamma_mult_2_values = {0, 0.5, 1.0};  // Used when TEST_SINGLE_GAMMA = false
-
-// Monopole parameters (same as 2gamma_loop.cpp)
+// Monopole parameters
 const double monopole1_vx = 0.0;
 const double monopole1_vy = 0.0;
 const double monopole1_vz = 0.0;
@@ -60,7 +51,7 @@ const double monopole2_y_offset = 0.0;
 const double monopole_grid_spacing = 0.01;
 const double monopole_prefactor = pow(2, -1.5);
 
-// 2HDM parameters (same as 2gamma_loop.cpp)
+// 2HDM parameters
 const long double m_h = 125;
 const long double V_sm = 246;
 const long double m_H = 0;
@@ -89,15 +80,14 @@ const double l4_p_l5 = (pow(v_sm, 2) / pow(M_h, 2)) * (2 * (pow(M_A, 2) - pow(M_
 const long double v1 = c_b * v_sm;
 const long double v2 = s_b * v_sm;
 
-// Copy calculateMonopoleFieldsAtPoint from energy_vs_grid.cpp
+// Same field calculation function as dedr_vs_r.cpp
 void calculateMonopoleFieldsAtPoint(long long int global_index, double field_values[8],
                                    long long int nx, long long int ny, long long int nz,
                                    double dx, double dy, double dz,
                                    double x1, double y1, double z1, double x2, double y2, double z2,
                                    const vector<double>& k_, const vector<double>& k_p,
                                    double gamma_param_1, double gamma_param_2) {
-    // ...existing code from energy_vs_grid.cpp...
-    // [Copy entire function - same as shown previously]
+    // ...existing code from dedr_vs_r.cpp...
     long long int i_coord = global_index / (ny * nz);
     long long int j_coord = (global_index / nz) % ny;
     long long int k_coord = global_index % nz;
@@ -185,17 +175,20 @@ void calculateMonopoleFieldsAtPoint(long long int global_index, double field_val
     complex<double> u_1[2][2];
     complex<double> u_2[2][2];
 
-    if ( z_1_prime == r_1 ) {
+    // FIXED: Add epsilon tolerance (matches 2gamma_loop and optimised_monopole)
+    const double EPS = 1e-8;
+
+    if (fabs(z_1_prime - r_1) < EPS) {
         u_1[0][0] = complex<double>(1.0, 0.0); u_1[0][1] = complex<double>(0.0, 0.0);
         u_1[1][0] = complex<double>(0.0, 0.0); u_1[1][1] = complex<double>(1.0, 0.0);
         u_2[0][0] = complex<double>(0.0, 0.0); u_2[0][1] = complex<double>(-1.0, 0.0);
         u_2[1][0] = complex<double>(1.0, 0.0); u_2[1][1] = complex<double>(0.0, 0.0);
-    } else if ( z_2_prime == -r_2 ) {
+    } else if (fabs(z_2_prime + r_2) < EPS) {
         u_1[0][0] = complex<double>(0.0, 0.0); u_1[0][1] = complex<double>(-1.0, 0.0);
         u_1[1][0] = complex<double>(1.0, 0.0); u_1[1][1] = complex<double>(0.0, 0.0);
         u_2[0][0] = complex<double>(-1.0, 0.0); u_2[0][1] = complex<double>(0.0, 0.0);
         u_2[1][0] = complex<double>(0.0, 0.0); u_2[1][1] = complex<double>(-1.0, 0.0);
-    } else if ( z_1_prime!= r_1 && z_2_prime != -r_2 && z_2_prime== r_2) {
+    } else if (fabs(z_1_prime - r_1) >= EPS && fabs(z_2_prime + r_2) >= EPS && fabs(z_2_prime - r_2) < EPS) {
         u_1[0][0] = complex<double>(0.0, 0.0); u_1[0][1] = complex<double>(-1.0, 0.0);
         u_1[1][0] = complex<double>(1.0, 0.0); u_1[1][1] = complex<double>(0.0, 0.0);
         u_2[0][0] = complex<double>(0.0, 0.0); u_2[0][1] = complex<double>(-1.0, 0.0);
@@ -292,12 +285,11 @@ void calculateMonopoleFieldsAtPoint(long long int global_index, double field_val
     field_values[7] = phi[3].imag();
 }
 
+// Same energy calculation as dedr_vs_r.cpp
 double calculateTotalEnergy(double x1, double y1, double z1, double x2, double y2, double z2,
                            const vector<double>& k_, const vector<double>& k_p,
                            double gamma_param_1, double gamma_param_2,
                            int rank, int size) {
-    // ...existing MPI decomposition and energy calculation...
-    // [Same as energy_vs_grid.cpp - copy the entire function body]
     
     long long int chunk = nPos / size;
     long long int chunkRem = nPos - size * chunk;
@@ -414,15 +406,14 @@ double calculateTotalEnergy(double x1, double y1, double z1, double x2, double y
                         l4_m_l5 * phi1_dot_phi2 * phi1_dot_phi2 +
                         l4_p_l5 * phi1_cross_phi2 * phi1_cross_phi2);
 
-        local_total_energy += local_energy * dx * dy * dz;
+        // FIXED: Add VEV normalization per point (matches 2gamma_loop and optimised_monopole)
+        local_total_energy += (local_energy + 1.0/8.0) * dx * dy * dz;
     }
     
     double global_total_energy = 0.0;
     MPI_Reduce(&local_total_energy, &global_total_energy, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    double vev_norm = (1.0/8.0) * pow((nx) * dx, 3.0);
-    global_total_energy += vev_norm;
-
+    // FIXED: Remove incorrect global VEV normalization (already added per point above)
     return global_total_energy;
 }
 
@@ -434,40 +425,15 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     if (rank == 0) {
-        cout << "=== BINDING FORCE STUDY (dE/dR vs R) ===" << endl;
+        cout << "=== FAST dE/dR CALCULATION (Sliding Window) ===" << endl;
         cout << "Box size: " << BOX_SIZE << "³" << endl;
-        cout << "Separation range: " << SEP_START << " to " << SEP_END << " (fraction of box)" << endl;
+        cout << "Separation range: " << SEP_START << " to " << SEP_END << endl;
         cout << "Step size: " << SEP_STEP << endl;
-        
-        if (TEST_SINGLE_GAMMA) {
-            cout << "Mode: Testing single gamma (γ₁ = γ₂)" << endl;
-            cout << "Gamma values: ";
-            for (auto g : gamma_mult_values) cout << g << " ";
-            cout << endl;
-            cout << "Total combinations: " << gamma_mult_values.size() << endl;
-        } else {
-            cout << "Mode: Testing all gamma combinations" << endl;
-            cout << "Gamma₁ values: ";
-            for (auto g : gamma_mult_1_values) cout << g << " ";
-            cout << endl;
-            cout << "Gamma₂ values: ";
-            for (auto g : gamma_mult_2_values) cout << g << " ";
-            cout << endl;
-            cout << "Total combinations: " << gamma_mult_1_values.size() * gamma_mult_2_values.size() << endl;
-        }
+        cout << "Mode: " << (TEST_SINGLE_GAMMA ? "Single gamma (γ₁=γ₂)" : "Full grid") << endl;
     }
 
     // Load monopole profile
     string fields_ic_data = inp_path + "SOR_Fields.txt";
-    ifstream test_file(fields_ic_data);
-    if (!test_file.good()) {
-        if (rank == 0) {
-            cout << "ERROR: Cannot find initial condition file: " << fields_ic_data << endl;
-        }
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    test_file.close();
-
     vector<double> k_, k_p;
     ifstream inputFile(fields_ic_data);
     double k_val, k_p_val;
@@ -483,134 +449,109 @@ int main(int argc, char** argv) {
         separations.push_back(sep);
     }
 
-    if (rank == 0) {
-        cout << "Number of separation points: " << separations.size() << endl;
-    }
-
-    // === MODIFIED: Choose loop structure based on TEST_SINGLE_GAMMA ===
     if (TEST_SINGLE_GAMMA) {
-        // Loop over single gamma value (γ₁ = γ₂)
         for (const auto& gamma_val : gamma_mult_values) {
-            
             double gamma_param_1 = gamma_val * pi;
             double gamma_param_2 = gamma_val * pi;
 
             if (rank == 0) {
-                cout << "\n=== Processing γ₁ = γ₂ = " << gamma_val << "π ===" << endl;
-            }
-
-            // Calculate energies at all separations
-            vector<double> R_values, E_values;
-
-            for (const auto& sep : separations) {
-                double x1 = 0.5 * (nx - 1);
-                double y1 = 0.5 * (ny - 1);
-                double z1 = 0.5 * (nz - 1) + sep * nz;
-
-                double x2 = 0.5 * (nx - 1);
-                double y2 = 0.5 * (ny - 1);
-                double z2 = 0.5 * (nz - 1) - sep * nz;
-
-                double E = calculateTotalEnergy(x1, y1, z1, x2, y2, z2, k_, k_p, 
-                                               gamma_param_1, gamma_param_2, rank, size);
-
-                if (rank == 0) {
-                    double R_real = 2 * sep * dz * BOX_SIZE;
-                    R_values.push_back(R_real);
-                    E_values.push_back(E);
-                }
-            }
-
-            // Calculate dE/dR using finite differences
-            if (rank == 0) {
-                vector<double> dE_dR_values;
+                cout << "\n=== γ=" << gamma_val << "π ===" << endl;
                 
-                for (size_t i = 0; i < R_values.size(); i++) {
-                    double dE_dR;
-                    
-                    if (i == 0) {
-                        dE_dR = (E_values[i+1] - E_values[i]) / (R_values[i+1] - R_values[i]);
-                    } else if (i == R_values.size() - 1) {
-                        dE_dR = (E_values[i] - E_values[i-1]) / (R_values[i] - R_values[i-1]);
-                    } else {
-                        dE_dR = (E_values[i+1] - E_values[i-1]) / (R_values[i+1] - R_values[i-1]);
-                    }
-                    
-                    dE_dR_values.push_back(dE_dR);
-                }
-
-                // Save to CSV
                 string gamma_str = to_string(gamma_val).substr(0,4);
                 gamma_str.erase(gamma_str.find_last_not_of('0') + 1);
                 gamma_str.erase(gamma_str.find_last_not_of('.') + 1);
 
+                // FIXED: Use gamma1_*_gamma2_* naming pattern to match analysis script
                 string filename = "binding_force_gamma1_" + gamma_str + "pi_gamma2_" + gamma_str + 
                                  "pi_box" + to_string(BOX_SIZE) + "_seed" + to_string(seed) + ".csv";
                 ofstream outfile(out_path + filename);
-                
                 outfile << "R_real,E_total,dE_dR" << endl;
                 outfile << fixed << setprecision(12);
-                
-                for (size_t i = 0; i < R_values.size(); i++) {
-                    outfile << R_values[i] << "," << E_values[i] << "," << dE_dR_values[i] << endl;
+
+                // Sliding window: store only 3 energies
+                double E_prev = 0.0, E_curr = 0.0, E_next = 0.0;
+                double R_prev = 0.0, R_curr = 0.0, R_next = 0.0;
+
+                for (size_t sep_idx = 0; sep_idx < separations.size(); sep_idx++) {
+                    double sep = separations[sep_idx];
+                    
+                    double x1 = 0.5 * (nx - 1);
+                    double y1 = 0.5 * (ny - 1);
+                    double z1 = 0.5 * (nz - 1) + sep * nz;
+                    double x2 = 0.5 * (nx - 1);
+                    double y2 = 0.5 * (ny - 1);
+                    double z2 = 0.5 * (nz - 1) - sep * nz;
+                    
+                    double R_real = 2 * sep * dz * BOX_SIZE;
+                    
+                    // Shift window
+                    if (sep_idx == 0) {
+                        // First point: calculate current
+                        E_curr = calculateTotalEnergy(x1, y1, z1, x2, y2, z2, k_, k_p, 
+                                                      gamma_param_1, gamma_param_2, rank, size);
+                        R_curr = R_real;
+                    } else {
+                        E_prev = E_curr;
+                        R_prev = R_curr;
+                        E_curr = E_next;
+                        R_curr = R_next;
+                    }
+                    
+                    // Calculate next point (if not last)
+                    if (sep_idx < separations.size() - 1) {
+                        double sep_next = separations[sep_idx + 1];
+                        double z1_next = 0.5 * (nz - 1) + sep_next * nz;
+                        double z2_next = 0.5 * (nz - 1) - sep_next * nz;
+                        E_next = calculateTotalEnergy(x1, y1, z1_next, x2, y2, z2_next, k_, k_p, 
+                                                      gamma_param_1, gamma_param_2, rank, size);
+                        R_next = 2 * sep_next * dz * BOX_SIZE;
+                    }
+                    
+                    // Calculate derivative
+                    double dE_dR;
+                    if (sep_idx == 0) {
+                        dE_dR = (E_next - E_curr) / (R_next - R_curr);
+                    } else if (sep_idx == separations.size() - 1) {
+                        dE_dR = (E_curr - E_prev) / (R_curr - R_prev);
+                    } else {
+                        dE_dR = (E_next - E_prev) / (R_next - R_prev);
+                    }
+                    
+                    outfile << R_curr << "," << E_curr << "," << dE_dR << endl;
+                    
+                    cout << "R=" << R_curr << ", E=" << E_curr << ", dE/dR=" << dE_dR << endl;
                 }
                 
                 outfile.close();
                 cout << "Saved: " << filename << endl;
+            } else {
+                // Non-rank-0 processes: just calculate energies
+                for (size_t sep_idx = 0; sep_idx < separations.size() + 1; sep_idx++) {
+                    if (sep_idx >= separations.size()) break;
+                    
+                    double sep = (sep_idx < separations.size()) ? separations[sep_idx] : separations.back();
+                    double x1 = 0.5 * (nx - 1);
+                    double y1 = 0.5 * (ny - 1);
+                    double z1 = 0.5 * (nz - 1) + sep * nz;
+                    double x2 = 0.5 * (nx - 1);
+                    double y2 = 0.5 * (ny - 1);
+                    double z2 = 0.5 * (nz - 1) - sep * nz;
+                    
+                    calculateTotalEnergy(x1, y1, z1, x2, y2, z2, k_, k_p, 
+                                        gamma_param_1, gamma_param_2, rank, size);
+                }
             }
         }
-        
     } else {
-        // Original full grid loop (γ₁ and γ₂ independent)
+        // Full grid mode (same sliding window approach)
         for (const auto& gamma1 : gamma_mult_1_values) {
             for (const auto& gamma2 : gamma_mult_2_values) {
-                
                 double gamma_param_1 = gamma1 * pi;
                 double gamma_param_2 = gamma2 * pi;
 
                 if (rank == 0) {
-                    cout << "\n=== Processing γ₁=" << gamma1 << "π, γ₂=" << gamma2 << "π ===" << endl;
-                }
-
-                // Calculate energies at all separations
-                vector<double> R_values, E_values;
-
-                for (const auto& sep : separations) {
-                    double x1 = 0.5 * (nx - 1);
-                    double y1 = 0.5 * (ny - 1);
-                    double z1 = 0.5 * (nz - 1) + sep * nz;
-
-                    double x2 = 0.5 * (nx - 1);
-                    double y2 = 0.5 * (ny - 1);
-                    double z2 = 0.5 * (nz - 1) - sep * nz;
-
-                    double E = calculateTotalEnergy(x1, y1, z1, x2, y2, z2, k_, k_p, 
-                                                   gamma_param_1, gamma_param_2, rank, size);
-
-                    if (rank == 0) {
-                        double R_real = 2 * sep * dz * BOX_SIZE;
-                        R_values.push_back(R_real);
-                        E_values.push_back(E);
-                    }
-                }
-
-                if (rank == 0) {
-                    vector<double> dE_dR_values;
+                    cout << "\n=== γ₁=" << gamma1 << "π, γ₂=" << gamma2 << "π ===" << endl;
                     
-                    for (size_t i = 0; i < R_values.size(); i++) {
-                        double dE_dR;
-                        
-                        if (i == 0) {
-                            dE_dR = (E_values[i+1] - E_values[i]) / (R_values[i+1] - R_values[i]);
-                        } else if (i == R_values.size() - 1) {
-                            dE_dR = (E_values[i] - E_values[i-1]) / (R_values[i] - R_values[i-1]);
-                        } else {
-                            dE_dR = (E_values[i+1] - E_values[i-1]) / (R_values[i+1] - R_values[i-1]);
-                        }
-                        
-                        dE_dR_values.push_back(dE_dR);
-                    }
-
                     string gamma1_str = to_string(gamma1).substr(0,4);
                     string gamma2_str = to_string(gamma2).substr(0,4);
                     gamma1_str.erase(gamma1_str.find_last_not_of('0') + 1);
@@ -621,23 +562,80 @@ int main(int argc, char** argv) {
                     string filename = "binding_force_gamma1_" + gamma1_str + "pi_gamma2_" + gamma2_str + 
                                      "pi_box" + to_string(BOX_SIZE) + "_seed" + to_string(seed) + ".csv";
                     ofstream outfile(out_path + filename);
-                    
                     outfile << "R_real,E_total,dE_dR" << endl;
                     outfile << fixed << setprecision(12);
-                    
-                    for (size_t i = 0; i < R_values.size(); i++) {
-                        outfile << R_values[i] << "," << E_values[i] << "," << dE_dR_values[i] << endl;
+
+                    double E_prev = 0.0, E_curr = 0.0, E_next = 0.0;
+                    double R_prev = 0.0, R_curr = 0.0, R_next = 0.0;
+
+                    for (size_t sep_idx = 0; sep_idx < separations.size(); sep_idx++) {
+                        double sep = separations[sep_idx];
+                        
+                        double x1 = 0.5 * (nx - 1);
+                        double y1 = 0.5 * (ny - 1);
+                        double z1 = 0.5 * (nz - 1) + sep * nz;
+                        double x2 = 0.5 * (nx - 1);
+                        double y2 = 0.5 * (ny - 1);
+                        double z2 = 0.5 * (nz - 1) - sep * nz;
+                        
+                        double R_real = 2 * sep * dz * BOX_SIZE;
+                        
+                        if (sep_idx == 0) {
+                            E_curr = calculateTotalEnergy(x1, y1, z1, x2, y2, z2, k_, k_p, 
+                                                          gamma_param_1, gamma_param_2, rank, size);
+                            R_curr = R_real;
+                        } else {
+                            E_prev = E_curr;
+                            R_prev = R_curr;
+                            E_curr = E_next;
+                            R_curr = R_next;
+                        }
+                        
+                        if (sep_idx < separations.size() - 1) {
+                            double sep_next = separations[sep_idx + 1];
+                            double z1_next = 0.5 * (nz - 1) + sep_next * nz;
+                            double z2_next = 0.5 * (nz - 1) - sep_next * nz;
+                            E_next = calculateTotalEnergy(x1, y1, z1_next, x2, y2, z2_next, k_, k_p, 
+                                                          gamma_param_1, gamma_param_2, rank, size);
+                            R_next = 2 * sep_next * dz * BOX_SIZE;
+                        }
+                        
+                        double dE_dR;
+                        if (sep_idx == 0) {
+                            dE_dR = (E_next - E_curr) / (R_next - R_curr);
+                        } else if (sep_idx == separations.size() - 1) {
+                            dE_dR = (E_curr - E_prev) / (R_curr - R_prev);
+                        } else {
+                            dE_dR = (E_next - E_prev) / (R_next - R_prev);
+                        }
+                        
+                        outfile << R_curr << "," << E_curr << "," << dE_dR << endl;
                     }
                     
                     outfile.close();
                     cout << "Saved: " << filename << endl;
+                } else {
+                    for (size_t sep_idx = 0; sep_idx < separations.size() + 1; sep_idx++) {
+                        if (sep_idx >= separations.size()) break;
+                        
+                        double sep = separations[sep_idx];
+                        double x1 = 0.5 * (nx - 1);
+                        double y1 = 0.5 * (ny - 1);
+                        double z1 = 0.5 * (nz - 1) + sep * nz;
+                        double x2 = 0.5 * (nx - 1);
+                        double y2 = 0.5 * (ny - 1);
+                        double z2 = 0.5 * (nz - 1) - sep * nz;
+                        
+                        calculateTotalEnergy(x1, y1, z1, x2, y2, z2, k_, k_p, 
+                                            gamma_param_1, gamma_param_2, rank, size);
+                    }
                 }
             }
         }
     }
 
     if (rank == 0) {
-        cout << "\n=== Binding force study completed! ===" << endl;
+        cout << "\n=== Fast dE/dR calculation completed! ===" << endl;
     }
 
     MPI_Finalize();

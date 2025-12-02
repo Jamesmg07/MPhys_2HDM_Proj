@@ -10,8 +10,8 @@ import time  # Add timing
 
 
 # Data directories  
-DATA_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
-OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/boost/")
+DATA_DIR = Path("/share/centaurus_nas/jmg_temp/pi3_512_long/")
+OUTPUT_DIR = Path("/share/centaurus_nas/jmg_temp/pi3_512_long/")
 
 
 
@@ -221,21 +221,21 @@ def find_monopole_tracking_files():
 def load_energy_data(filepath):
     """Load energy data from file"""
     try:
-        # Energy files should have one column: Energy
-        with open(filepath, 'r') as f:
-            lines = f.readlines()
+        data = pd.read_csv(filepath)
         
-        # Skip header if present
-        energy_values = []
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith('Energy'):  # Skip header
-                try:
-                    energy_values.append(float(line.split()[0]))  # Take first column
-                except (ValueError, IndexError):
-                    continue
+        # Check if 'Energy' column exists (case-insensitive)
+        energy_col = None
+        for col in data.columns:
+            if col.strip().lower() == 'energy':
+                energy_col = col
+                break
         
-        return np.array(energy_values)
+        if energy_col is None:
+            print(f"Error: No 'Energy' column found in {filepath}")
+            print(f"Available columns: {data.columns.tolist()}")
+            return None
+        
+        return data[energy_col].values
     except Exception as e:
         print(f"Error loading energy data from {filepath}: {e}")
         return None
@@ -267,10 +267,12 @@ def plot_energy_vs_time(energy_files):
             continue
         
         # Calculate vacuum energy to subtract
-        vacuum_energy = (1/8) * ((nx-2) * dx)**3
+        # Vacuum energy formula: E_vac = (1/8) * V where V is the volume
+        # Volume = (nx-2)*dx * (ny-2)*dy * (nz-2)*dz for interior points
+        vacuum_energy = (1.0/8.0) * ((nx-2) * dx) * ((ny-2) * dy) * ((nz-2) * dz)
         
         # Subtract vacuum energy from all values
-        energy_data_corrected = energy_data + vacuum_energy
+        energy_data_corrected = energy_data - vacuum_energy
         
         # Create time array
         timesteps = np.arange(len(energy_data_corrected))
@@ -308,7 +310,8 @@ def plot_energy_vs_time(energy_files):
         print(f"      Initial energy (corrected): {energy_data_corrected[0]:.6f}")
         print(f"      Final energy (corrected): {energy_data_corrected[-1]:.6f}")
         print(f"      Energy change: {energy_data_corrected[-1] - energy_data_corrected[0]:.6f}")
-        print(f"      Energy conservation: {abs(energy_data_corrected[-1] - energy_data_corrected[0])/abs(energy_data_corrected[0])*100:.4f}%")
+        if abs(energy_data_corrected[0]) > 1e-10:
+            print(f"      Energy conservation: {abs(energy_data_corrected[-1] - energy_data_corrected[0])/abs(energy_data_corrected[0])*100:.4f}%")
 
 def plot_monopole_separation(tracking_files):
     """Plot monopole separation over time"""
@@ -398,8 +401,95 @@ def plot_monopole_separation(tracking_files):
             print(f"      Total change: {separation_change:.6f}")
             print(f"      Relative change: {(separation_change/initial_separation)*100:.2f}%")
 
+def load_r_field_data_slices(filepath):
+    """Load R-field data from slice-format CSV file"""
+    try:
+        # Read the CSV file
+        data = pd.read_csv(filepath)
+        
+        # Debug: print column names and first few rows
+        if len(data) == 0:
+            print(f"Warning: Empty data file {filepath}")
+            return None
+        
+        # Check if this is slice-format data (has slice_type column)
+        if 'slice_type' not in data.columns:
+            print(f"Warning: No 'slice_type' column found in {filepath}")
+            print(f"Columns found: {data.columns.tolist()}")
+            # Fall back to old format
+            return load_r_field_data(filepath)
+        
+        # Separate XY and XZ slices
+        xy_data = data[data['slice_type'] == 'xy'].copy()
+        xz_data = data[data['slice_type'] == 'xz'].copy()
+        
+        r_fields = {'xy': {}, 'xz': {}}
+        
+        # Process XY slice (varies in x and y, fixed z)
+        if len(xy_data) > 0:
+            # Get the fixed z coordinate
+            center_z = int(xy_data['k'].iloc[0])
+            
+            # Initialize 3D arrays (will only fill one slice)
+            for col in ['R1nt', 'R2nt', 'R3nt']:
+                r_fields['xy'][col] = np.zeros((nx, ny, nz))
+            
+            # Fill the XY slice
+            for _, row in xy_data.iterrows():
+                i_coord = int(row['i'])
+                j_coord = int(row['j'])
+                k_coord = int(row['k'])
+                
+                # Add bounds checking
+                if 0 <= i_coord < nx and 0 <= j_coord < ny and 0 <= k_coord < nz:
+                    r_fields['xy']['R1nt'][i_coord, j_coord, k_coord] = row['R1nt']
+                    r_fields['xy']['R2nt'][i_coord, j_coord, k_coord] = row['R2nt']
+                    r_fields['xy']['R3nt'][i_coord, j_coord, k_coord] = row['R3nt']
+            
+            r_fields['xy']['slice_index'] = center_z
+        else:
+            print(f"Warning: No XY slice data found in {filepath}")
+        
+        # Process XZ slice (varies in x and z, fixed y)
+        if len(xz_data) > 0:
+            # Get the fixed y coordinate
+            center_y = int(xz_data['j'].iloc[0])
+            
+            # Initialize 3D arrays (will only fill one slice)
+            for col in ['R1nt', 'R2nt', 'R3nt']:
+                r_fields['xz'][col] = np.zeros((nx, ny, nz))
+            
+            # Fill the XZ slice
+            for _, row in xz_data.iterrows():
+                i_coord = int(row['i'])
+                j_coord = int(row['j'])
+                k_coord = int(row['k'])
+                
+                # Add bounds checking
+                if 0 <= i_coord < nx and 0 <= j_coord < ny and 0 <= k_coord < nz:
+                    r_fields['xz']['R1nt'][i_coord, j_coord, k_coord] = row['R1nt']
+                    r_fields['xz']['R2nt'][i_coord, j_coord, k_coord] = row['R2nt']
+                    r_fields['xz']['R3nt'][i_coord, j_coord, k_coord] = row['R3nt']
+            
+            r_fields['xz']['slice_index'] = center_y
+        else:
+            print(f"Warning: No XZ slice data found in {filepath}")
+        
+        # Verify we have data
+        if (len(xy_data) == 0 and len(xz_data) == 0):
+            print(f"Error: No valid slice data found in {filepath}")
+            return None
+        
+        return r_fields
+            
+    except Exception as e:
+        print(f"Error loading slice data from {filepath}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def load_r_field_data(filepath):
-    """Load R-field data and reshape to 3D grid - optimized version"""
+    """Load R-field data and reshape to 3D grid - optimized version (for full grid data)"""
     try:
         # Use numpy for faster loading, skip header row
         data = np.loadtxt(filepath, skiprows=1)
@@ -593,48 +683,104 @@ def analyze_and_create_all_outputs(selected_files):
         print(f"    [{i+1}/{len(selected_files)}] Processing file for timestep {extract_timestep(file)}...")
 
         timestep = extract_timestep(file)
-        r_fields = load_r_field_data(file)
-
-        if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
-            # Calculate slice data once for both slice types
-            slice_data_xz = prepare_slice_data(r_fields, slice_index_xz, 'xz')
-            slice_data_xy = prepare_slice_data(r_fields, slice_index_xy, 'xy')
+        
+        # Try to load as slice-format data first
+        r_fields_all = load_r_field_data_slices(file)
+        
+        if r_fields_all and isinstance(r_fields_all, dict) and 'xy' in r_fields_all and 'xz' in r_fields_all:
+            # Slice-format data loaded successfully
+            r_fields_xz = r_fields_all['xz']
+            r_fields_xy = r_fields_all['xy']
             
-            all_slice_data_xz.append(slice_data_xz)
-            all_slice_data_xy.append(slice_data_xy)
-            timesteps.append(timestep)
+            # Get the actual slice indices from the data
+            slice_index_xz_actual = r_fields_xz.get('slice_index', slice_index_xz)
+            slice_index_xy_actual = r_fields_xy.get('slice_index', slice_index_xy)
             
-            # XZ slice statistics
-            monopole_field_xz = slice_data_xz['monopole_field']
-            field_magnitude_xz = slice_data_xz['field_magnitude']
-            
-            # XY slice statistics
-            monopole_field_xy = slice_data_xy['monopole_field']
-            field_magnitude_xy = slice_data_xy['field_magnitude']
-            
-            # Debug: Print field statistics
-            print(f"      XZ slice stats: min={np.min(monopole_field_xz):.6f}, max={np.max(monopole_field_xz):.6f}")
-            print(f"      XY slice stats: min={np.min(monopole_field_xy):.6f}, max={np.max(monopole_field_xy):.6f}")
-            
-            # Update global scaling parameters for XZ
-            frame_vmax_xz = np.percentile(monopole_field_xz, 99)
-            frame_vmin_xz = np.min(monopole_field_xz)
-            frame_arrow_max_xz = np.max(field_magnitude_xz)
-            
-            global_vmax_xz = max(global_vmax_xz, frame_vmax_xz)
-            global_vmin_xz = min(global_vmin_xz, frame_vmin_xz)
-            global_arrow_max_xz = max(global_arrow_max_xz, frame_arrow_max_xz)
-            
-            # Update global scaling parameters for XY
-            frame_vmax_xy = np.percentile(monopole_field_xy, 99)
-            frame_vmin_xy = np.min(monopole_field_xy)
-            frame_arrow_max_xy = np.max(field_magnitude_xy)
-            
-            global_vmax_xy = max(global_vmax_xy, frame_vmax_xy)
-            global_vmin_xy = min(global_vmin_xy, frame_vmin_xy)
-            global_arrow_max_xy = max(global_arrow_max_xy, frame_arrow_max_xy)
+            # Check if we have valid data
+            if all(key in r_fields_xz for key in ['R1nt', 'R2nt', 'R3nt']) and \
+               all(key in r_fields_xy for key in ['R1nt', 'R2nt', 'R3nt']):
+                
+                # Calculate slice data for both slices
+                slice_data_xz = prepare_slice_data(r_fields_xz, slice_index_xz_actual, 'xz')
+                slice_data_xy = prepare_slice_data(r_fields_xy, slice_index_xy_actual, 'xy')
+                
+                all_slice_data_xz.append(slice_data_xz)
+                all_slice_data_xy.append(slice_data_xy)
+                timesteps.append(timestep)
+                
+                # XZ slice statistics
+                monopole_field_xz = slice_data_xz['monopole_field']
+                field_magnitude_xz = slice_data_xz['field_magnitude']
+                
+                # XY slice statistics
+                monopole_field_xy = slice_data_xy['monopole_field']
+                field_magnitude_xy = slice_data_xy['field_magnitude']
+                
+                # Debug: Print field statistics
+                print(f"      XZ slice stats: min={np.min(monopole_field_xz):.6f}, max={np.max(monopole_field_xz):.6f}")
+                print(f"      XY slice stats: min={np.min(monopole_field_xy):.6f}, max={np.max(monopole_field_xy):.6f}")
+                
+                # Update global scaling parameters for XZ
+                frame_vmax_xz = np.percentile(monopole_field_xz, 99)
+                frame_vmin_xz = np.min(monopole_field_xz)
+                frame_arrow_max_xz = np.max(field_magnitude_xz)
+                
+                global_vmax_xz = max(global_vmax_xz, frame_vmax_xz)
+                global_vmin_xz = min(global_vmin_xz, frame_vmin_xz)
+                global_arrow_max_xz = max(global_arrow_max_xz, frame_arrow_max_xz)
+                
+                # Update global scaling parameters for XY
+                frame_vmax_xy = np.percentile(monopole_field_xy, 99)
+                frame_vmin_xy = np.min(monopole_field_xy)
+                frame_arrow_max_xy = np.max(field_magnitude_xy)
+                
+                global_vmax_xy = max(global_vmax_xy, frame_vmax_xy)
+                global_vmin_xy = min(global_vmin_xy, frame_vmin_xy)
+                global_arrow_max_xy = max(global_arrow_max_xy, frame_arrow_max_xy)
         else:
-            print(f"      Skipped: Invalid data for timestep {timestep}")
+            # Try old format (full grid data)
+            r_fields = load_r_field_data(file)
+            
+            if r_fields and all(key in r_fields for key in ['R1nt', 'R2nt', 'R3nt']):
+                # Calculate slice data once for both slice types
+                slice_data_xz = prepare_slice_data(r_fields, slice_index_xz, 'xz')
+                slice_data_xy = prepare_slice_data(r_fields, slice_index_xy, 'xy')
+                
+                all_slice_data_xz.append(slice_data_xz)
+                all_slice_data_xy.append(slice_data_xy)
+                timesteps.append(timestep)
+                
+                # XZ slice statistics
+                monopole_field_xz = slice_data_xz['monopole_field']
+                field_magnitude_xz = slice_data_xz['field_magnitude']
+                
+                # XY slice statistics
+                monopole_field_xy = slice_data_xy['monopole_field']
+                field_magnitude_xy = slice_data_xy['field_magnitude']
+                
+                # Debug: Print field statistics
+                print(f"      XZ slice stats: min={np.min(monopole_field_xz):.6f}, max={np.max(monopole_field_xz):.6f}")
+                print(f"      XY slice stats: min={np.min(monopole_field_xy):.6f}, max={np.max(monopole_field_xy):.6f}")
+                
+                # Update global scaling parameters for XZ
+                frame_vmax_xz = np.percentile(monopole_field_xz, 99)
+                frame_vmin_xz = np.min(monopole_field_xz)
+                frame_arrow_max_xz = np.max(field_magnitude_xz)
+                
+                global_vmax_xz = max(global_vmax_xz, frame_vmax_xz)
+                global_vmin_xz = min(global_vmin_xz, frame_vmin_xz)
+                global_arrow_max_xz = max(global_arrow_max_xz, frame_arrow_max_xz)
+                
+                # Update global scaling parameters for XY
+                frame_vmax_xy = np.percentile(monopole_field_xy, 99)
+                frame_vmin_xy = np.min(monopole_field_xy)
+                frame_arrow_max_xy = np.max(field_magnitude_xy)
+                
+                global_vmax_xy = max(global_vmax_xy, frame_vmax_xy)
+                global_vmin_xy = min(global_vmin_xy, frame_vmin_xy)
+                global_arrow_max_xy = max(global_arrow_max_xy, frame_arrow_max_xy)
+            else:
+                print(f"      Skipped: Invalid data for timestep {timestep}")
 
     print(f"  Data processing completed in {time.time() - load_start:.2f}s")
 
