@@ -14,17 +14,17 @@ const double pi = 4.0 * atan(1.0);
 
 
 
-const string inp_path = "/share/centaurus_nas/jmg_temp/"; // Input Directory Location - relative path
-const string out_path = "/share/centaurus_nas/jmg_temp/1024_repel/"; // Data Directory Location - fixed path
+const string inp_path = "./"; // Input Directory Location - relative path
+const string out_path = "/share/centaurus_nas/mkza/Week_10/512_0pi_1pi/"; // Data Directory Location - fixed path
 
 
 //Simulation paramaters (adjustable):
 
 const int nts = 2; // Number of time steps saved in data arrays
 
-const long long int nx = 1024; // Grid Dimensions
-const long long int ny = 1024;
-const long long int nz = 1024; // Set nz = 1 for 2D.
+const long long int nx = 512; // Grid Dimensions
+const long long int ny = 512;
+const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 const bool save_slices_only = true;
 
@@ -34,15 +34,16 @@ const double dz = 0.5;
 const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
-const int nt = 2000;
+const int nt = 6000;
 const int R_saveTot = 5;
 
 const int seed = 73;
 
-const double gamma_mult = 0.5;
+const double gamma_mult_1 = 0;  // Gamma for monopole 1
+const double gamma_mult_2 = 1;  // Gamma for monopole 2
 // Monopole/Antimonopole Configuration Parameters
 
-const double offset_from_centre = 0.3; // Offset of monopole/antimonopole from centre as a fraction of box size
+const double offset_from_centre = 0.025; // Offset of monopole/antimonopole from centre as a fraction of box size
 // * nz;  in z direction 
 
 // Monopole Boost Parameters (add after monopole position parameters)
@@ -55,7 +56,8 @@ const double monopole2_vy = 0.0;
 const double monopole2_vz = -0.0; // Example: -0.1c boost in z direction (opposite)
 
 
-const double gamma_param = (gamma_mult * pi); // Phase difference parameter
+const double gamma_param_1 = (gamma_mult_1 * pi); // Phase difference parameter for monopole 1
+const double gamma_param_2 = (gamma_mult_2 * pi); // Phase difference parameter for monopole 2
 
 
 
@@ -77,7 +79,7 @@ const int sep_saveFreq = 2;
 const int R_saveFreq = int(nt / R_saveTot);
 
 
-const string outTag = "gamma=" + to_string(gamma_mult) + "pi_nx=" + to_string(nx) + "_sep=" + to_string(2*offset_from_centre*nz) + "_nt=" + to_string(nt) + "_seed=" + to_string(seed) + "_monopole" ;
+const string outTag = "gamma1=" + to_string(gamma_mult_1) + "pi_gamma2=" + to_string(gamma_mult_2) + "pi_nx=" + to_string(nx) + "_sep=" + to_string(2*offset_from_centre*nz) + "_nt=" + to_string(nt) + "_seed=" + to_string(seed) + "_monopole" ;
 
 // 2HDM Z_2 Symmetric Potential Set-Up:
  
@@ -177,7 +179,7 @@ int main(int argc, char** argv) {
         cout << "Number of MPI processes: " << size << endl;
         cout << "Number of timesteps: " << nt << endl;
         cout << "Initial condition type: " << ic_type << endl;
-        cout << "Gamma: " << gamma_mult << "pi" << endl;
+        cout << "Gamma 1: " << gamma_mult_1 << "pi, Gamma 2: " << gamma_mult_2 << "pi" << endl;
     }
 
     if (rank == 0) {
@@ -331,7 +333,8 @@ int main(int argc, char** argv) {
         paramFile << "dz=" << dz << endl;
         paramFile << "dt=" << dt << endl;
         paramFile << "nt=" << nt << endl;
-        paramFile << "gamma_mult=" << gamma_mult << endl;
+        paramFile << "gamma_mult_1=" << gamma_mult_1 << endl;
+        paramFile << "gamma_mult_2=" << gamma_mult_2 << endl;
         paramFile << "offset_from_centre=" << offset_from_centre << endl;
         paramFile << "monopole1_vx=" << monopole1_vx << endl;
         paramFile << "monopole1_vy=" << monopole1_vy << endl;
@@ -475,6 +478,7 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             cout << "STEP 9a: Starting monopole initial conditions" << endl;
+            cout << "Gamma 1: " << gamma_mult_1 << "pi, Gamma 2: " << gamma_mult_2 << "pi" << endl;
             cout << "Monopole 1 boost: vx=" << monopole1_vx << ", vy=" << monopole1_vy << ", vz=" << monopole1_vz << endl;
             cout << "Monopole 2 boost: vx=" << monopole2_vx << ", vy=" << monopole2_vy << ", vz=" << monopole2_vz << endl;
    
@@ -758,35 +762,6 @@ int main(int argc, char** argv) {
                 }
 
 
-                // Define the T matrix
-                complex<double> T[2][2] = {
-                    {exp(complex<double>(0, 0.5 * gamma_param)), complex<double>(0.0, 0.0)},
-                    {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param))}
-                };
-
-                // Step 1: Compute C = T * u_2
-                complex<double> C[2][2];
-                for (int row = 0; row < 2; ++row) {
-                    for (int col = 0; col < 2; ++col) {
-                        C[row][col] = complex<double>(0.0, 0.0);
-                        for (int index = 0; index < 2; ++index) {
-                            C[row][col] += T[row][index] * u_2[index][col];
-                        }
-                    }
-                }
-
-                // Step 2: Compute A = u_1 * C
-                complex<double> A[2][2];
-                for (int row = 0; row < 2; ++row) {
-                    for (int col = 0; col < 2; ++col) {
-                        A[row][col] = complex<double>(0.0, 0.0);
-                        for (int index = 0; index < 2; ++index) {
-                            A[row][col] += u_1[row][index] * C[index][col];
-                        }
-                    }
-                }
-                            
-                            
                 // Define matrix M
                 double sqrt2_inv = 1.0 / sqrt(2.0);
                 complex<double> M[2][2] = {
@@ -794,31 +769,67 @@ int main(int argc, char** argv) {
                     {-sqrt2_inv, sqrt2_inv}
                 };
 
-                // Compute the matrix product B = A * M
-                complex<double> B[2][2];
+                complex<double> TP[4][4];
+
+                // Define T1 and T2 matrices with different gamma parameters
+                complex<double> T1[2][2] = {
+                    {exp(complex<double>(0, 0.5 * gamma_param_1)), complex<double>(0.0, 0.0)},
+                    {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param_1))}
+                };
+                complex<double> T2[2][2] = {
+                    {exp(complex<double>(0, 0.5 * gamma_param_2)), complex<double>(0.0, 0.0)},
+                    {complex<double>(0.0, 0.0), exp(complex<double>(0, -0.5 * gamma_param_2))}
+                };
+
+                // Compute C1 = T1 * u_2 and C2 = T2 * u_2
+                complex<double> C1[2][2], C2[2][2];
                 for (int row = 0; row < 2; ++row) {
                     for (int col = 0; col < 2; ++col) {
-                        B[row][col] = complex<double>(0.0, 0.0);
+                        C1[row][col] = complex<double>(0.0, 0.0);
+                        C2[row][col] = complex<double>(0.0, 0.0);
                         for (int index = 0; index < 2; ++index) {
-                            B[row][col] += A[row][index] * M[index][col];
+                            C1[row][col] += T1[row][index] * u_2[index][col];
+                            C2[row][col] += T2[row][index] * u_2[index][col];
                         }
                     }
                 }
 
-                complex<double> TP[4][4];
+                // Compute A1 = u_1 * C1 and A2 = u_1 * C2
+                complex<double> A1[2][2], A2[2][2];
+                for (int row = 0; row < 2; ++row) {
+                    for (int col = 0; col < 2; ++col) {
+                        A1[row][col] = complex<double>(0.0, 0.0);
+                        A2[row][col] = complex<double>(0.0, 0.0);
+                        for (int index = 0; index < 2; ++index) {
+                            A1[row][col] += u_1[row][index] * C1[index][col];
+                            A2[row][col] += u_1[row][index] * C2[index][col];
+                        }
+                    }
+                }
 
-                // Compute the tensor product B ⊗ B
+                // Compute B1 = A1 * M and B2 = A2 * M
+                complex<double> B1[2][2], B2[2][2];
+                for (int row = 0; row < 2; ++row) {
+                    for (int col = 0; col < 2; ++col) {
+                        B1[row][col] = complex<double>(0.0, 0.0);
+                        B2[row][col] = complex<double>(0.0, 0.0);
+                        for (int index = 0; index < 2; ++index) {
+                            B1[row][col] += A1[row][index] * M[index][col];
+                            B2[row][col] += A2[row][index] * M[index][col];
+                        }
+                    }
+                }
+
+                // Compute tensor product B1 ⊗ B2
                 for (int r = 0; r < 2; ++r) {
                     for (int c = 0; c < 2; ++c) {
                         for (int x = 0; x < 2; ++x) {
                             for (int y = 0; y < 2; ++y) {
-                                TP[2 * r + x][2 * c + y] = B[r][c] * B[x][y];
+                                TP[2 * r + x][2 * c + y] = B1[r][c] * B2[x][y];
                             }
                         }
                     }
                 }
-
-                
 
                 // Multiply the tensor product by the prefactor
                 for (int r = 0; r < 4; ++r) {
