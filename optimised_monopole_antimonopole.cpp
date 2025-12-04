@@ -39,6 +39,7 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = 6000;
 const int R_saveTot = 5;
+const double intial_real_separation = 20; // Initial separation as a fraction of box size
 
 const int seed = 73;
 
@@ -46,7 +47,7 @@ const double gamma_mult_1 = 0;  // Gamma for monopole 1
 const double gamma_mult_2 = 1;  // Gamma for monopole 2
 // Monopole/Antimonopole Configuration Parameters
 
-const double offset_from_centre = 0.025; // Offset of monopole/antimonopole from centre as a fraction of box size
+const double offset_from_centre = initial_real_separation / (2 * nz * dz); // Offset of monopole/antimonopole from centre as a fraction of box size
 // * nz;  in z direction 
 
 // Monopole Boost Parameters (add after monopole position parameters)

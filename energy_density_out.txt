@@ -1,0 +1,33 @@
+Looking for files in: /share/centaurus_nas/jmg_temp/256_energy_density
+Simulation parameters: Grid=256×256×256
+Found 1 energy density file(s)
+
+[1/1] Processing file...
+
+Processing: energy_density_xzslice_gamma1=0.000000pi_gamma2=0.000000pi_nx=256_sep=0.250000_seed=73_monopole.csv
+  Monopole 1 position: (63.75, 63.75, 95.75)
+  Monopole 2 position: (63.75, 63.75, 31.75)
+  Using x=63.50, z=95.50 for line plots
+
+  Analyzing energy density falloff in outer regions...
+    X-direction (perpendicular to dipole, r > 10):
+      Power law fit: E ~ 0.287128 * r^-1.785
+      Fitting method: Linear regression on log(E) vs log(r)
+      -> Consistent with 1/r² (dipole-like)
+    Z-direction (beyond monopole 1, z > 96, r > 10):
+      Power law fit: E ~ 0.309572 * r^-1.699
+      Fitting method: Linear regression on log(E) vs log(r)
+    Z-direction (beyond monopole 2, z < 32, r > 10):
+      Power law fit: E ~ 0.309572 * r^-1.699
+      Fitting method: Linear regression on log(E) vs log(r)
+
+  Key insight:
+    - If exponent ≈ -2: Dipole field dominates (monopole-antimonopole pair)
+    - If exponent ≈ -1: Individual monopole field dominates
+    - Log-log fitting extracts power law: linear slope in log-log space = power exponent
+  Saved: energy_density_xz_analysis_gamma1=0.0pi_gamma2=0.0pi_nx=256_sep=0.25_seed=73_monopole.png
+
+All plots saved to: /share/centaurus_nas/jmg_temp/256_energy_density
+============================================================
+ANALYSIS COMPLETE
+============================================================
