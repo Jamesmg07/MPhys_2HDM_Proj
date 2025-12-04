@@ -27,6 +27,9 @@ const long long int ny = 512;
 const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 const bool save_slices_only = true;
+const bool makeGif = false;
+const bool monopoleTracking = true;
+
 
 const double dx = 0.5; //Grid Spacings
 const double dy = 0.5;
@@ -152,8 +155,7 @@ int main(int argc, char** argv) {
     const bool wallDetect = false;
     const bool finalOut = true;
     const bool monopoleDetect = false;
-    const bool makeGif = true;
-
+    
     const int countRate = 20; // Increments for simulation progress status output.
 
 
@@ -1655,25 +1657,13 @@ int main(int argc, char** argv) {
         */
 
 
-        if (makeGif && (TimeStep % sep_saveFreq == 0) && (TimeStep % R_saveFreq == 0)) {
+        if ((makeGif || monopoleTracking )) && (TimeStep % sep_saveFreq == 0) && (TimeStep % R_saveFreq == 0)) {
 
 
             if (rank == 0) {
 
-                cout << "Making gif output at timestep " << TimeStep << endl;
-                    string rValuesPath = out_path + "R_values_" +  "_timestep=" + to_string(TimeStep) + outTag + ".csv";
-                ofstream rValuesFile(rValuesPath.c_str());
-                if (save_slices_only) {
-                    rValuesFile << "slice_type,i,j,k,R1nt,R2nt,R3nt\n";
-                } else {
-                    rValuesFile << "R1nt,R2nt,R3nt\n";
-                }
-                
-                rValuesFile << fixed << setprecision(6);
-                
-                
-            
-                // Create files for fields and R values
+                cout << "Processing data output at timestep " << TimeStep << endl;
+                    
                 
                 
                 vector<vector<double>> fieldsOutnt(nb_fields, vector<double>(nPos, 0.0));
@@ -1701,76 +1691,92 @@ int main(int argc, char** argv) {
                 }
 
                 
-                vector<double> monopole_field(nPos); 
 
-                if (save_slices_only) {
-                    // Calculate center coordinates
-                    int center_y = 0.5 * (ny - 1);
-                    int center_z = 0.5 * (nz - 1);
-                    
-                    // Save XY slice at center z
-                    for (int i_coord = 0; i_coord < nx; i_coord++) {
-                        for (int j_coord = 0; j_coord < ny; j_coord++) {
-                            int idx = i_coord * (ny * nz) + j_coord * nz + center_z;
-                            
-                            // Compute R values
-                            R1nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[4][idx] + fieldsOutnt[1][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[6][idx] + fieldsOutnt[3][idx] * fieldsOutnt[7][idx]);
-                            R2nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[7][idx] - fieldsOutnt[1][idx] * fieldsOutnt[4][idx] - fieldsOutnt[3][idx] * fieldsOutnt[6][idx]);
-                            R3nt = pow(fieldsOutnt[0][idx], 2) + pow(fieldsOutnt[1][idx], 2) + pow(fieldsOutnt[2][idx], 2) + pow(fieldsOutnt[3][idx], 2) - pow(fieldsOutnt[4][idx], 2) - pow(fieldsOutnt[5][idx], 2) - pow(fieldsOutnt[6][idx], 2) - pow(fieldsOutnt[7][idx], 2);
-                            
-                            // Write with slice type identifier
-                            rValuesFile << "xy," << i_coord << "," << j_coord << "," << center_z << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
-                            
-                            if (ic_type == "monopole") {
-                                monopole_field[idx] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
-                            }
-                        }
-                    }
-                    
-                    // Save XZ slice at center y (through monopoles)
-                    for (int i_coord = 0; i_coord < nx; i_coord++) {
-                        for (int k_coord = 0; k_coord < nz; k_coord++) {
-                            int idx = i_coord * (ny * nz) + center_y * nz + k_coord;
-                            
-                            // Compute R values
-                            R1nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[4][idx] + fieldsOutnt[1][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[6][idx] + fieldsOutnt[3][idx] * fieldsOutnt[7][idx]);
-                            R2nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[7][idx] - fieldsOutnt[1][idx] * fieldsOutnt[4][idx] - fieldsOutnt[3][idx] * fieldsOutnt[6][idx]);
-                            R3nt = pow(fieldsOutnt[0][idx], 2) + pow(fieldsOutnt[1][idx], 2) + pow(fieldsOutnt[2][idx], 2) + pow(fieldsOutnt[3][idx], 2) - pow(fieldsOutnt[4][idx], 2) - pow(fieldsOutnt[5][idx], 2) - pow(fieldsOutnt[6][idx], 2) - pow(fieldsOutnt[7][idx], 2);
-                            
-                            // Write with slice type identifier
-                            rValuesFile << "xz," << i_coord << "," << center_y << "," << k_coord << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
-                            
-                            if (ic_type == "monopole") {
-                                monopole_field[idx] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
-                            }
-                        }
-                    }
-                    
-                } else {
-                    // Original behavior: save all points
+                vector<double> monopole_field;
+
+                if (ic_type == "monopole" && monopoleTracking) {
+                    monopole_field.resize(nPos);
                     for (j = 0; j < nPos; j++) {
-
-                        // Compute R values
                         R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
                         R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
                         R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
+                        monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
 
-                        // Write R values to R values file, ensuring explicit output of 0.0
-                        rValuesFile << R1nt << "," << R2nt << "," << R3nt << "\n";
-
-                        if (ic_type == "monopole") {
-                            monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
-                        }
                     }
                 }
+                if (makeGif) {
+                    string rValuesPath = out_path + "R_values_" + "_timestep=" + to_string(TimeStep) + outTag + ".csv";
+                    ofstream rValuesFile(rValuesPath.c_str());
+                    if (save_slices_only) {
+                        rValuesFile << "slice_type,i,j,k,R1nt,R2nt,R3nt\n";
+                    } else {
+                        rValuesFile << "R1nt,R2nt,R3nt\n";
+                    }
+                    rValuesFile << fixed << setprecision(6);
+                    
 
-                 
-                
-                rValuesFile.close();
-                
+                    if (save_slices_only) {
+                        // Calculate center coordinates
+                        int center_y = 0.5 * (ny - 1);
+                        int center_z = 0.5 * (nz - 1);
+                        
+                        // Save XY slice at center z
+                        for (int i_coord = 0; i_coord < nx; i_coord++) {
+                            for (int j_coord = 0; j_coord < ny; j_coord++) {
+                                int idx = i_coord * (ny * nz) + j_coord * nz + center_z;
+                                
+                                // Compute R values
+                                R1nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[4][idx] + fieldsOutnt[1][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[6][idx] + fieldsOutnt[3][idx] * fieldsOutnt[7][idx]);
+                                R2nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[7][idx] - fieldsOutnt[1][idx] * fieldsOutnt[4][idx] - fieldsOutnt[3][idx] * fieldsOutnt[6][idx]);
+                                R3nt = pow(fieldsOutnt[0][idx], 2) + pow(fieldsOutnt[1][idx], 2) + pow(fieldsOutnt[2][idx], 2) + pow(fieldsOutnt[3][idx], 2) - pow(fieldsOutnt[4][idx], 2) - pow(fieldsOutnt[5][idx], 2) - pow(fieldsOutnt[6][idx], 2) - pow(fieldsOutnt[7][idx], 2);
+                                
+                                // Write with slice type identifier
+                                rValuesFile << "xy," << i_coord << "," << j_coord << "," << center_z << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
+                                
+                                
+                            }
+                        }
+                        
+                        // Save XZ slice at center y (through monopoles)
+                        for (int i_coord = 0; i_coord < nx; i_coord++) {
+                            for (int k_coord = 0; k_coord < nz; k_coord++) {
+                                int idx = i_coord * (ny * nz) + center_y * nz + k_coord;
+                                
+                                // Compute R values
+                                R1nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[4][idx] + fieldsOutnt[1][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[6][idx] + fieldsOutnt[3][idx] * fieldsOutnt[7][idx]);
+                                R2nt = 2 * (fieldsOutnt[0][idx] * fieldsOutnt[5][idx] + fieldsOutnt[2][idx] * fieldsOutnt[7][idx] - fieldsOutnt[1][idx] * fieldsOutnt[4][idx] - fieldsOutnt[3][idx] * fieldsOutnt[6][idx]);
+                                R3nt = pow(fieldsOutnt[0][idx], 2) + pow(fieldsOutnt[1][idx], 2) + pow(fieldsOutnt[2][idx], 2) + pow(fieldsOutnt[3][idx], 2) - pow(fieldsOutnt[4][idx], 2) - pow(fieldsOutnt[5][idx], 2) - pow(fieldsOutnt[6][idx], 2) - pow(fieldsOutnt[7][idx], 2);
+                                
+                                // Write with slice type identifier
+                                rValuesFile << "xz," << i_coord << "," << center_y << "," << k_coord << "," << R1nt << "," << R2nt << "," << R3nt << "\n";
+                                
+                                
+                            }
+                        }
+                        
+                    } else {
+                        // Original behavior: save all points
+                        for (j = 0; j < nPos; j++) {
 
+                            // Compute R values
+                            R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
+                            R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
+                            R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
+
+                            // Write R values to R values file, ensuring explicit output of 0.0
+                            rValuesFile << R1nt << "," << R2nt << "," << R3nt << "\n";
+
+                            
+                        }
+                    }
+
+                    
+                    
+                    rValuesFile.close();
+                    
+                }
                                 // Monopole tracking for monopole initial conditions
-                if (ic_type == "monopole") {
+                if (ic_type == "monopole" && monopoleTracking) {
                     
                     // Create monopole tracking file if this is the first save
                     string monopoleTrackingPath = out_path + "monopole_tracking_" +  outTag + ".csv";
@@ -1789,23 +1795,7 @@ int main(int argc, char** argv) {
                     min1_idx = -1;
                     min2_idx = -1;
 
-                    if (save_slices_only) {
-                        // For slice mode, we need to search the full field for monopole tracking
-                        // So we keep the original monopole tracking behavior
-                        for (j = 0; j < nPos; j++) {
-                            // Recalculate monopole_field for all points for tracking
-                            int k_coord = j % nz;
-                            int j_coord = (j / nz) % ny;
-                            int i_coord = j / (ny * nz);
-                            
-                            R1nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[4][j] + fieldsOutnt[1][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[6][j] + fieldsOutnt[3][j] * fieldsOutnt[7][j]);
-                            R2nt = 2 * (fieldsOutnt[0][j] * fieldsOutnt[5][j] + fieldsOutnt[2][j] * fieldsOutnt[7][j] - fieldsOutnt[1][j] * fieldsOutnt[4][j] - fieldsOutnt[3][j] * fieldsOutnt[6][j]);
-                            R3nt = pow(fieldsOutnt[0][j], 2) + pow(fieldsOutnt[1][j], 2) + pow(fieldsOutnt[2][j], 2) + pow(fieldsOutnt[3][j], 2) - pow(fieldsOutnt[4][j], 2) - pow(fieldsOutnt[5][j], 2) - pow(fieldsOutnt[6][j], 2) - pow(fieldsOutnt[7][j], 2);
-                            
-                            monopole_field[j] = R1nt*R1nt + R2nt*R2nt + R3nt*R3nt;
-                        }
-                    }
-                    
+                                        
                     // First pass: find absolute minimum
                     for (j = 0; j < nPos; j++) {
                         if (monopole_field[j] < min1_value) {
