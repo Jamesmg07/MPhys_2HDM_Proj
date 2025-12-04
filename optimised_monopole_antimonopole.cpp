@@ -1657,7 +1657,7 @@ int main(int argc, char** argv) {
         */
 
 
-        if ((makeGif || monopoleTracking )) && (TimeStep % sep_saveFreq == 0) && (TimeStep % R_saveFreq == 0)) {
+        if ((makeGif || monopoleTracking ) && (TimeStep % sep_saveFreq == 0) && (TimeStep % R_saveFreq == 0)) {
 
 
             if (rank == 0) {
