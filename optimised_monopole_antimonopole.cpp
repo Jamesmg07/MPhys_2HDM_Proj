@@ -39,7 +39,7 @@ const double dt = 0.1; //..KEEP 1 TO 5 RATIO, KEEP BELOW 0.5
 // const int nt = (nx * dx / (2 * dt)); // nt required for sim to end at light crossing time is nx*dx/(2*dt)
 const int nt = 6000;
 const int R_saveTot = 5;
-const double intial_real_separation = 20; // Initial separation as a fraction of box size
+const double initial_real_separation = 20; // Initial separation as a fraction of box size
 
 const int seed = 73;
 
