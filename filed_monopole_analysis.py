@@ -20,7 +20,7 @@ DEFAULT_PARAMS = {
     'nx': 0, 'ny': 0, 'nz': 0,
     'dx': 0.5, 'dy': 0.5, 'dz': 0.5,
     'dt': 0.1, 'nt': 320,
-    'gamma_mult': 0.495, 'offset_from_centre': 0.25,
+    'gamma_mult_1': 0.0, 'gamma_mult_2': 1.0, 'offset_from_centre': 0.25,
     'n_samples': 10
 }
 
@@ -54,7 +54,7 @@ def load_simulation_parameters(data_dir):
                         # Convert to appropriate type
                         if key in ['nx', 'ny', 'nz', 'nt', 'seed', 'sep_SaveFreq', 'R_saveFreq']:
                             params[key] = int(value)
-                        elif key in ['dx', 'dy', 'dz', 'dt', 'gamma_mult', 'offset_from_centre',
+                        elif key in ['dx', 'dy', 'dz', 'dt', 'gamma_mult_1', 'gamma_mult_2', 'offset_from_centre',
                                    'monopole1_vx', 'monopole1_vy', 'monopole1_vz',
                                    'monopole2_vx', 'monopole2_vy', 'monopole2_vz',
                                    'monopole1_x', 'monopole1_y', 'monopole1_z',
@@ -66,7 +66,7 @@ def load_simulation_parameters(data_dir):
         print(f"Successfully loaded parameters:")
         print(f"  Grid: {params['nx']}×{params['ny']}×{params['nz']}")
         print(f"  Timesteps: {params['nt']}, dt: {params['dt']}")
-        print(f"  Gamma: {params['gamma_mult']}π")
+        print(f"  Gamma 1: {params['gamma_mult_1']}π, Gamma 2: {params['gamma_mult_2']}π")
         print(f"  Output tag: {params.get('outTag', 'unknown')}")
         
     except Exception as e:
@@ -85,7 +85,9 @@ dx, dy, dz = PARAMS['dx'], PARAMS['dy'], PARAMS['dz']
 dt = PARAMS['dt']
 nt = PARAMS['nt']
 nPos = nx * ny * nz
-gamma_string = PARAMS['gamma_mult']
+gamma_mult_1 = PARAMS['gamma_mult_1']
+gamma_mult_2 = PARAMS['gamma_mult_2']
+gamma_string = f"{gamma_mult_1}pi_{gamma_mult_2}pi"  # Combined string for filenames
 n_samples = PARAMS.get('n_samples', 10)
 offset_from_centre = PARAMS['offset_from_centre']
 
@@ -278,10 +280,6 @@ def plot_energy_vs_time(energy_files):
         timesteps = np.arange(len(energy_data_corrected))
         time_values = timesteps * dt
         
-        # Extract gamma value from filename for title
-        gamma_match = re.search(r'gamma=([^_]+)', energy_file.name)
-        gamma_str = gamma_match.group(1) if gamma_match else str(gamma_string)
-        
         plt.figure(figsize=(12, 8))
         
         # Single plot of energy vs time
@@ -289,7 +287,7 @@ def plot_energy_vs_time(energy_files):
                 label='Total Energy (vacuum subtracted)')
         plt.xlabel('Time')
         plt.ylabel('Energy')
-        plt.title(f'Energy Evolution (γ = {gamma_str}) - Vacuum Energy Subtracted')
+        plt.title(f'Energy Evolution (γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π) - Vacuum Energy Subtracted')
         plt.grid(True, alpha=0.3)
         plt.legend()
         
@@ -301,11 +299,11 @@ def plot_energy_vs_time(energy_files):
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
         
-        save_path = OUTPUT_DIR / f'energy_evolution_gamma_{gamma_str}.png'
-        save_and_close_plot(save_path, f"    Saved: energy_evolution_gamma_{gamma_str}.png")
+        save_path = OUTPUT_DIR / f'energy_evolution_gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi.png'
+        save_and_close_plot(save_path, f"    Saved: energy_evolution_gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi.png")
         
         # Print energy statistics
-        print(f"    Energy statistics for γ = {gamma_str}:")
+        print(f"    Energy statistics for γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π:")
         print(f"      Vacuum energy subtracted: {vacuum_energy:.6f}")
         print(f"      Initial energy (corrected): {energy_data_corrected[0]:.6f}")
         print(f"      Final energy (corrected): {energy_data_corrected[-1]:.6f}")
@@ -373,7 +371,7 @@ def plot_monopole_separation(tracking_files):
                    label=f'Initial separation = {initial_separation:.2f}')
         plt.xlabel('Time')
         plt.ylabel('Separation')
-        plt.title(f'Monopole-Antimonopole Separation Evolution (γ = {gamma_str})')
+        plt.title(f'Monopole-Antimonopole Separation Evolution (γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π)')
         plt.grid(True, alpha=0.3)
         plt.legend()
         
@@ -385,11 +383,11 @@ def plot_monopole_separation(tracking_files):
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
         
-        save_path = OUTPUT_DIR / f'monopole_separation_gamma_{gamma_str}.png'
-        save_and_close_plot(save_path, f"    Saved: monopole_separation_gamma_{gamma_str}.png")
+        save_path = OUTPUT_DIR / f'monopole_separation_gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi.png'
+        save_and_close_plot(save_path, f"    Saved: monopole_separation_gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi.png")
         
         # Print separation statistics
-        print(f"    Separation statistics for γ = {gamma_str}:")
+        print(f"    Separation statistics for γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π:")
         print(f"      Valid timesteps: {len(separations)}/{len(tracking_data)}")
         print(f"      Initial separation: {initial_separation:.6f}")
         print(f"      Final separation: {separations[-1]:.6f}")
@@ -619,12 +617,12 @@ def setup_slice_plot(ax, slice_data, vmin, vmax, arrow_scale, global_arrow_max, 
     if slice_type == 'xz':
         ax.set_xlabel('x position')
         ax.set_ylabel('z position')
-        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}π')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R3) vectors (y={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π')
         vector_label = 'Field magnitude |R1,R3|'
     elif slice_type == 'xy':
         ax.set_xlabel('x position')
         ax.set_ylabel('y position')
-        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}π')
+        ax.set_title(f'Monopole Field (R1² + R2² + R3²) + (R1,R2) vectors (z={slice_index}) - t={timestep}\nGrid: {nx}×{ny}×{nz}, Monopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π')
         vector_label = 'Field magnitude |R1,R2|'
 
     ax.set_xlim(coord1[0], coord1[-1])
@@ -650,7 +648,7 @@ def create_individual_plot(slice_data, timestep, vmin, vmax, global_arrow_max, s
     cbar2.set_label(vector_label)
     
     # Save and close with appropriate filename
-    filename = f'γ = {gamma_string}pi_{slice_type}_monopole_field_t{timestep}.png'
+    filename = f'gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi_{slice_type}_monopole_field_t{timestep}.png'
     save_and_close_plot(OUTPUT_DIR / filename, f"    Saved: {filename}")
 
 def analyze_and_create_all_outputs(selected_files):
@@ -842,19 +840,19 @@ def analyze_and_create_all_outputs(selected_files):
         quiv_xz.set_UVC(field1_plot.T, field2_plot.T)
         quiv_xz.set_array(field_magnitude.T.flatten())
         quiv_xz.set_clim(0, global_arrow_max_xz)
-        ax_xz.set_title(f'Monopole Field Evolution (y={slice_index_xz}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ = {gamma_string}π')
+        ax_xz.set_title(f'Monopole Field Evolution (y={slice_index_xz}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π')
         return [im_xz, quiv_xz]
 
     # Create XZ animation
     anim_xz = animation.FuncAnimation(fig_xz, animate_xz, frames=len(all_slice_data_xz), 
                                      interval=200, blit=True, repeat=True)
 
-    gif_path_xz = OUTPUT_DIR / f'{gamma_string}pi_monopole_field_evolution_xz_slice.gif'
-    print(f"    Saving XZ GIF to: {gamma_string}pi_{gif_path_xz}")
+    gif_path_xz = OUTPUT_DIR / f'gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi_monopole_field_evolution_xz_slice.gif'
+    print(f"    Saving XZ GIF to: {gif_path_xz}")
 
     try:
         anim_xz.save(gif_path_xz, writer='pillow', fps=8, dpi=100)
-        print(f"    ✓ Successfully saved XZ GIF: {gamma_string}pi_monopole_field_evolution_xz_slice.gif")
+        print(f"    ✓ Successfully saved XZ GIF: gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi_monopole_field_evolution_xz_slice.gif")
     except Exception as e:
         print(f"    Error saving XZ GIF: {e}")
 
@@ -891,19 +889,19 @@ def analyze_and_create_all_outputs(selected_files):
         quiv_xy.set_UVC(field1_plot.T, field2_plot.T)
         quiv_xy.set_array(field_magnitude.T.flatten())
         quiv_xy.set_clim(0, global_arrow_max_xy)
-        ax_xy.set_title(f'Monopole Field Evolution (z={slice_index_xy}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}')
+        ax_xy.set_title(f'Monopole Field Evolution (z={slice_index_xy}) - t={timestep}\nMonopole positions: z={monopole1_pos[2]:.0f}, z={monopole2_pos[2]:.0f}, γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π')
         return [im_xy, quiv_xy]
 
     # Create XY animation
     anim_xy = animation.FuncAnimation(fig_xy, animate_xy, frames=len(all_slice_data_xy), 
                                      interval=200, blit=True, repeat=True)
 
-    gif_path_xy = OUTPUT_DIR / f'{gamma_string}pi_monopole_field_evolution_xy_slice.gif'
-    print(f"    Saving XY GIF to: {gamma_string}_{gif_path_xy}")
+    gif_path_xy = OUTPUT_DIR / f'gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi_monopole_field_evolution_xy_slice.gif'
+    print(f"    Saving XY GIF to: {gif_path_xy}")
 
     try:
         anim_xy.save(gif_path_xy, writer='pillow', fps=8, dpi=100)
-        print(f"    ✓ Successfully saved XY GIF: monopole_field_evolution_xy_slice.gif")
+        print(f"    ✓ Successfully saved XY GIF: gamma1_{gamma_mult_1}pi_gamma2_{gamma_mult_2}pi_monopole_field_evolution_xy_slice.gif")
     except Exception as e:
         print(f"    Error saving XY GIF: {e}")
 
@@ -928,7 +926,7 @@ if __name__ == "__main__":
     print_progress(1, total_steps, "Initializing analysis...")
     print(f"Looking for files in: {DATA_DIR}")
     print(f"Simulation parameters: Grid={nx}×{ny}×{nz}, dt={dt}, Expected timesteps={nt}")
-    print(f"Gamma parameter: {gamma_string}π")
+    print(f"Gamma parameters: γ₁ = {gamma_mult_1}π, γ₂ = {gamma_mult_2}π")
     print(f"Using {n_samples} samples for field analysis")
     
     if not DATA_DIR.exists():
