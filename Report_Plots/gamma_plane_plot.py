@@ -46,14 +46,25 @@ if gamma2_solutions:
 # Create the plot
 fig, ax = plt.subplots(figsize=(12, 8))
 
-# Plot the solution curve as a line
-ax.plot(gamma1_sorted, gamma2_sorted, 'b.', markersize=0.8, alpha=1, label=r'$\Delta E = 0$')
+# Create meshgrid for shading regions
+gamma1_mesh = np.linspace(0, 2*np.pi, 500)
+gamma2_mesh = np.linspace(0, 2*np.pi, 500)
+G1, G2 = np.meshgrid(gamma1_mesh, gamma2_mesh)
+
+# Evaluate the equation over the grid
+Z = 2*np.cos(G1) + 2*np.cos(G2) - np.cos(G1 - G2) - 1
+
+# Shade regions: blue where equation < 0, red where equation > 0
+ax.contourf(G1, G2, Z, levels=[-np.inf, 0, np.inf], colors=['blue', 'red'], alpha=0.25)
+
+# Plot the solution curve as a line (increased marker size)
+ax.plot(gamma1_sorted, gamma2_sorted, 'b.', markersize=1.6, alpha=1, label=r'$\Delta E = 0$')
 
 # Add gamma1 = gamma2 dashed line
 gamma_line = np.linspace(0, 2*np.pi, 100)
 ax.plot(gamma_line, gamma_line, 'k--', linewidth=1.5, alpha=0.7, label=r'$\gamma_1 = \gamma_2$')
 
-# Add scatter points with different colors
+# Add scatter points with different colors (doubled size)
 points = [
     (0, np.pi, 'red', r'$(0, \pi)$'),
     (np.pi, 0, 'darkorange', r'$(\pi, 0)$'),
@@ -64,20 +75,20 @@ points = [
 ]
 
 for x, y, color, label in points:
-    ax.scatter(x, y, c=color, s=100, zorder=5, linewidths=0, label=label)
+    ax.scatter(x, y, c=color, s=200, zorder=5, linewidths=0, label=label)
 
 # Set axis labels and title
-ax.set_xlabel(r'$\gamma_1$', fontsize=14)
-ax.set_ylabel(r'$\gamma_2$', fontsize=14)
-ax.set_title(r'$\gamma_1$-$\gamma_2$ plane for $\Delta E = 0$', fontsize=16)
+ax.set_xlabel(r'$\gamma_1$', fontsize=16)
+ax.set_ylabel(r'$\gamma_2$', fontsize=16)
+ax.set_title(r'$\gamma_1$-$\gamma_2$ plane for $\Delta E = 0$', fontsize=18)
 
 # Set ticks in multiples of π
 pi_ticks = np.array([0, 1, 2]) * np.pi
 pi_labels = [r'$0$', r'$\pi$', r'$2\pi$']
 ax.set_xticks(pi_ticks)
-ax.set_xticklabels(pi_labels)
+ax.set_xticklabels(pi_labels, fontsize=16)
 ax.set_yticks(pi_ticks)
-ax.set_yticklabels(pi_labels)
+ax.set_yticklabels(pi_labels, fontsize=16)
 
 # Set axis limits
 ax.set_xlim(0, 2*np.pi)
@@ -88,7 +99,7 @@ ax.grid(True, alpha=0.3)
 ax.set_aspect('equal')
 
 # Add legend outside the plot on the right
-ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=10, framealpha=0.9)
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize=12, framealpha=0.9)
 
 plt.tight_layout()
 plt.savefig('gamma_plane_E0.png', dpi=300, bbox_inches='tight')
