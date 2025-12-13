@@ -15,7 +15,7 @@ const double pi = 4.0 * atan(1.0);
 //Simulation paramaters (adjustable):
 
 const string inp_path = "./"; // Input Directory Location - relative path
-const string out_path = "/share/centaurus_nas/jmg_temp/256_energy_density/"; // Data Directory Location - fixed path
+const string out_path = "/share/centaurus_nas/jmg_temp/0_512_energy_density/"; // Data Directory Location - fixed path
 
 // === NEW: Arrays for triple nested loop ===
 const vector<double> separations = {0.25}; // Different separation values to test
@@ -26,9 +26,9 @@ const vector<double> gamma_mult_2_values = {0.0}; // Array of gamma_2 values to 
 const bool save_energy_density = true;     // Save energy density at each xyz coordinate
 const bool save_separation_energy = false;  // Save total energy vs separation (1-to-1 mapping)
 
-const long long int nx = 256; // Grid Dimensions
-const long long int ny = 256;
-const long long int nz = 256; // Set nz = 1 for 2D.
+const long long int nx = 512; // Grid Dimensions
+const long long int ny = 512;
+const long long int nz = 512; // Set nz = 1 for 2D.
 const long long int nPos = nx * ny * nz;
 
 const double dx = 0.5; //Grid Spacings

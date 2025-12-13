@@ -41,6 +41,13 @@ def fitting_function_power(N, a, b, c):
     """
     return a - b / (N ** c)
 
+def fitting_function_linear(N, a, b):
+    """
+    Linear fitting: E(N) = a + b*N
+    For cases where energy scales linearly with grid size
+    """
+    return a + b * N
+
 def log_space_fitting(N, E):
     """
     Fit in log space to find power law: log(E_max - E) ~ -c*log(N) + log(b)
@@ -111,6 +118,7 @@ def plot_energy_vs_gridsize(data_file_path, output_dir=None):
     # Storage for fit parameters
     fit_params_dict = {}
     fit_params_power_dict = {}
+    fit_type_dict = {}  # Track which fit type was used
     
     # Plot each dx value as a separate line
     for i, dx in enumerate(dx_values):
@@ -127,57 +135,109 @@ def plot_energy_vs_gridsize(data_file_path, output_dir=None):
         E_array = dx_data['total_energy'].values
         c_log, b_log = log_space_fitting(N_array, E_array)
         
-        # Method 2: Fit with free power exponent
+        # Try both linear and power law fits
+        fit_success = False
+        best_fit_type = None
+        best_r_squared = -np.inf
+        
+        # Try linear fit first
         try:
+            popt_linear, _ = curve_fit(fitting_function_linear, N_array, E_array)
+            E_fit_linear = fitting_function_linear(N_array, *popt_linear)
+            residuals_linear = E_array - E_fit_linear
+            ss_res_linear = np.sum(residuals_linear**2)
+            ss_tot = np.sum((E_array - np.mean(E_array))**2)
+            r_squared_linear = 1 - (ss_res_linear / ss_tot) if ss_tot > 0 else 0
+            
+            if r_squared_linear > best_r_squared:
+                best_r_squared = r_squared_linear
+                best_fit_type = 'linear'
+                best_popt = popt_linear
+                fit_success = True
+        except Exception as e:
+            print(f"Linear fit failed for dx = {dx}: {e}")
+        
+        # Try power law fit
+        try:
+            # Use more robust initial guess and bounds
+            E_min, E_max = E_array.min(), E_array.max()
+            E_range = E_max - E_min
+            
             # Initial guess
-            energy_diff = dx_data['total_energy'].max() - dx_data['total_energy'].min()
-            
-            if c_log is not None:
-                # Use log-space result as initial guess
-                p0 = [dx_data['total_energy'].max(), b_log, c_log]
+            if c_log is not None and c_log > 0:
+                p0 = [E_max, b_log, c_log]
             else:
-                # Default guess
-                p0 = [dx_data['total_energy'].max(), energy_diff * dx_data['grid_size'].min()**2, 2.0]
+                # Conservative guess: assume quadratic convergence
+                p0 = [E_max, E_range * N_array.min()**2, 2.0]
             
-            # Fit with bounds
-            lower_bounds = [dx_data['total_energy'].min(), 0, 0.5]
-            upper_bounds = [dx_data['total_energy'].max() * 1.5, np.inf, 4.0]
+            # More permissive bounds to avoid infeasibility
+            lower_bounds = [E_min - abs(E_range), 0, 0.1]  # Allow c down to 0.1
+            upper_bounds = [E_max + abs(E_range), np.inf, 6.0]  # Allow higher powers
             
-            popt, pcov = curve_fit(fitting_function_power, dx_data['grid_size'], 
-                                   dx_data['total_energy'], p0=p0, 
-                                   bounds=(lower_bounds, upper_bounds),
-                                   maxfev=10000)
+            # Check if initial guess is within bounds
+            p0 = np.clip(p0, lower_bounds, upper_bounds)
             
-            fit_params_power_dict[dx] = popt
+            popt_power, _ = curve_fit(fitting_function_power, N_array, E_array, 
+                                      p0=p0, bounds=(lower_bounds, upper_bounds),
+                                      maxfev=10000)
             
-            # Generate smooth curve for plotting
-            N_smooth = np.linspace(dx_data['grid_size'].min(), 
-                                   dx_data['grid_size'].max(), 200)
-            E_fit = fitting_function_power(N_smooth, *popt)
+            E_fit_power = fitting_function_power(N_array, *popt_power)
+            residuals_power = E_array - E_fit_power
+            ss_res_power = np.sum(residuals_power**2)
+            r_squared_power = 1 - (ss_res_power / ss_tot) if ss_tot > 0 else 0
             
-            # Plot fitted curve
+            if r_squared_power > best_r_squared:
+                best_r_squared = r_squared_power
+                best_fit_type = 'power'
+                best_popt = popt_power
+                fit_success = True
+                
+        except Exception as e:
+            print(f"Power law fit failed for dx = {dx}: {e}")
+        
+        # Plot the best fit
+        if fit_success:
+            fit_type_dict[dx] = best_fit_type
+            N_smooth = np.linspace(N_array.min(), N_array.max(), 200)
+            
+            if best_fit_type == 'linear':
+                E_fit = fitting_function_linear(N_smooth, *best_popt)
+                b_str = format_to_3sf(best_popt[1])
+                fit_label = f'dx = {dx} (linear: E ∝ {b_str}L)'
+                fit_params_dict[dx] = best_popt
+            else:  # power law
+                E_fit = fitting_function_power(N_smooth, *best_popt)
+                c_value = best_popt[2]
+                c_str = format_to_3sf(c_value)
+                # For power law E = a - b/L^c, this means E converges as 1/L^c
+                # So we show E ∝ L^(-c)
+                fit_label = f'dx = {dx} (power law: E ∝ L^${{-{c_str}}}$)'
+                fit_params_power_dict[dx] = best_popt
+            
             plt.plot(N_smooth, E_fit, 
                     color=colors[i % len(colors)], 
                     linestyle='--', linewidth=2, alpha=0.5,
-                    label=f'dx = {dx} (fit: c={popt[2]:.2f})')
-            
-        except Exception as e:
-            print(f"Warning: Could not fit data for dx = {dx}: {e}")
+                    label=fit_label)
+        else:
+            print(f"Warning: Both fits failed for dx = {dx}")
     
     # Formatting
-    plt.xlabel('Grid Size (L)', fontsize=14)  
-    plt.ylabel('Total Energy', fontsize=14)
+    plt.xlabel('Grid Size (L)', fontsize=16)  
+    plt.ylabel('Total Energy', fontsize=16)
+    plt.xticks([256, 512, 1024, 2048, 4096], fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.ylim(bottom=0)
     plt.grid(True, alpha=0.3)
-    plt.legend(fontsize=9, loc='best')
+    plt.legend(fontsize=12, loc='best')
     
     # Create simplified title with function form
     title_lines = [
         f'Energy vs Grid Size Study',
-        f'Physical Separation = {physical_separation}, γ₁ = {gamma_1:.3f}, γ₂ = {gamma_2:.3f}',
-        f'Fit Function: E(N) = a - b/N^c'
+        f'Constant Physical Separation, γ₁ = γ₂ = $\\pi$ ',
+      
     ]
     
-    plt.title('\n'.join(title_lines), fontsize=12, pad=20)
+    plt.title('\n'.join(title_lines), fontsize=16, pad=20)
     
     # Adjust layout to prevent title cutoff
     plt.tight_layout()
@@ -198,23 +258,54 @@ def plot_energy_vs_gridsize(data_file_path, output_dir=None):
     # Print summary statistics
     print("\nSummary Statistics:")
     print("-" * 50)
-    print(f"Fitting Function: E(N) = a - b/N^c")
-    print("(c is determined from log-log fit)")
+    print(f"Auto-fitted: Linear (E=a+bN) or Power Law (E=a-b/N^c)")
     print("-" * 50)
     for dx in dx_values:
         dx_data = df[df['dx'] == dx]
         print(f"dx = {dx}:")
         print(f"  Grid sizes: {sorted(dx_data['grid_size'].unique())}")
-        print(f"  Energy range: {dx_data['total_energy'].min():.6e} - {dx_data['total_energy'].max():.6e}")
+        E_min_str = format_to_3sf(dx_data['total_energy'].min())
+        E_max_str = format_to_3sf(dx_data['total_energy'].max())
+        print(f"  Energy range: {E_min_str} - {E_max_str}")
         print(f"  Energy ratio (max/min): {dx_data['total_energy'].max()/dx_data['total_energy'].min():.2f}")
         
-        # Print fit parameters if available
-        if dx in fit_params_power_dict:
-            a, b, c = fit_params_power_dict[dx]
-            print(f"  Fit parameters: a = {a:.6e}, b = {b:.6e}, c = {c:.3f}")
-            print(f"  Asymptotic energy (N→∞): {a:.6e}")
-            print(f"  Convergence rate: ~1/N^{c:.2f}")
+        # Print fit parameters based on type
+        if dx in fit_type_dict:
+            if fit_type_dict[dx] == 'linear' and dx in fit_params_dict:
+                a, b = fit_params_dict[dx]
+                a_str = format_to_3sf(a)
+                b_str = format_to_3sf(b)
+                print(f"  Fit type: LINEAR")
+                print(f"  Fit parameters: E(N) = {a_str} + {b_str}*N")
+            elif fit_type_dict[dx] == 'power' and dx in fit_params_power_dict:
+                a, b, c = fit_params_power_dict[dx]
+                a_str = format_to_3sf(a)
+                b_str = format_to_3sf(b)
+                print(f"  Fit type: POWER LAW")
+                print(f"  Fit parameters: a = {a_str}, b = {b_str}, c = {c:.3f}")
+                print(f"  Asymptotic energy (N→∞): {a_str}")
+                print(f"  Convergence rate: ~1/N^{c:.2f}")
         print()
+
+def format_to_3sf(value):
+    """Format a number to 3 significant figures without scientific notation"""
+    if value == 0:
+        return "0"
+    
+    # Determine the order of magnitude
+    magnitude = int(np.floor(np.log10(abs(value))))
+    
+    # Round to 3 significant figures
+    rounded = round(value, -magnitude + 2)
+    
+    # Format without scientific notation
+    if magnitude >= 2 or magnitude < -2:
+        # For large or small numbers, format with appropriate decimal places
+        decimals = max(0, 2 - magnitude)
+        return f"{rounded:.{decimals}f}"
+    else:
+        # For numbers close to 1, use standard formatting
+        return f"{rounded:.3g}".replace('e', 'E')  # In case .3g still uses sci notation
 
 def main():
     """Main function to process all CSV files in the output directory"""
