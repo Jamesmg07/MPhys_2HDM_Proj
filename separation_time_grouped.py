@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 
 # Data directory
-DATA_DIR = Path(r".\Report_Data\half_pi")
-OUTPUT_DIR = Path(r".\Report_Plots")
+DATA_DIR = Path(r".\Data")
+OUTPUT_DIR = Path(r".\Plots")
 
 def load_simulation_parameters(param_file):
     """Load simulation parameters from a single parameter file"""
@@ -101,11 +101,8 @@ def calculate_separation(tracking_data, params):
         if (row['x1_center'] != -1 and row['y1_center'] != -1 and row['z1_center'] != -1 and
             row['x2_center'] != -1 and row['y2_center'] != -1 and row['z2_center'] != -1):
             
-            # Calculate 3D distance
-            dx = row['x2_center'] - row['x1_center']
-            dy = row['y2_center'] - row['y1_center']
-            dz = row['z2_center'] - row['z1_center']
-            separation = np.sqrt(dx**2 + dy**2 + dz**2)
+            # Calculate separation as z1 - z2
+            separation = np.abs(row['z1_center'] - row['z2_center'])
             
             separations.append(separation)
             valid_timesteps.append(row['timestep'])
@@ -121,15 +118,20 @@ def calculate_separation(tracking_data, params):
     return time_values, separations, valid_timesteps
 
 def plot_separation_comparison(matched_data):
-    """Plot separation vs time for all simulations on a single plot"""
-    fig, ax = plt.subplots(figsize=(10, 6.6))
+    """Plot separation vs time for two simulations on a single plot"""
+    # Limit to first 2 simulations
+    num_sims = min(2, len(matched_data))
     
-    colors = plt.cm.tab10(np.linspace(0, 1, len(matched_data)))
+    if num_sims < 2:
+        print("Warning: Less than 2 simulations found, plotting what's available")
     
-    # Collect all simulation data with initial separations for sorting
-    sim_data_list = []
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     
-    for idx, sim in enumerate(matched_data):
+    colors = ['tab:blue', 'tab:orange']
+    gamma_pairs = []
+    
+    for idx in range(num_sims):
+        sim = matched_data[idx]
         tracking_file = sim['tracking_file']
         params = sim['params']
         out_tag = sim['out_tag']
@@ -137,8 +139,9 @@ def plot_separation_comparison(matched_data):
         # Extract gamma values for this simulation
         gamma1_sim = params.get('gamma_mult_1', 0.0)
         gamma2_sim = params.get('gamma_mult_2', 1.0)
+        gamma_pairs.append((gamma1_sim, gamma2_sim))
         
-        print(f"\nProcessing simulation {idx+1}/{len(matched_data)}")
+        print(f"\nProcessing simulation {idx+1}/{num_sims}")
         print(f"  File: {tracking_file.name}")
         print(f"  γ₁ = {gamma1_sim}π, γ₂ = {gamma2_sim}π")
         
@@ -155,11 +158,6 @@ def plot_separation_comparison(matched_data):
             print(f"  Warning: No valid monopole pairs found")
             continue
         
-        # Cut off data after t = 50
-        mask = time_values <= 50.0
-        time_values = time_values[mask]
-        separations = separations[mask]
-        
         # Get initial separation
         initial_sep = separations[0]
         
@@ -171,58 +169,29 @@ def plot_separation_comparison(matched_data):
         if abs(initial_sep) > 1e-10:
             print(f"  Relative change: {(separations[-1] - initial_sep)/initial_sep*100:.2f}%")
         
-        # Store data for sorting
-        sim_data_list.append({
-            'initial_sep': initial_sep,
-            'time_values': time_values,
-            'separations': separations,
-            'color': colors[idx]
-        })
+        # Plot without label
+        ax.plot(time_values, separations, 
+               color=colors[idx], linewidth=2, marker='o', markersize=3,
+               alpha=0.8)
     
-    # Sort by initial separation
-    sim_data_list.sort(key=lambda x: x['initial_sep'])
+    # Create title from gamma pairs
+    if len(gamma_pairs) == 2:
+        title = f'$(\\gamma_1, \\gamma_2) = ({gamma_pairs[0][0]}\\pi, {gamma_pairs[0][1]}\\pi)$ and $({gamma_pairs[1][0]}\\pi, {gamma_pairs[1][1]}\\pi)$'
+    elif len(gamma_pairs) == 1:
+        title = f'$(\\gamma_1, \\gamma_2) = ({gamma_pairs[0][0]}\\pi, {gamma_pairs[0][1]}\\pi)$'
+    else:
+        title = 'Monopole Separation'
     
-    # Plot in sorted order
-    for idx, sim_data in enumerate(sim_data_list):
-        # Legend label with initial separation (1 decimal place)
-        label = f"$R_i$ = {sim_data['initial_sep']:.1f}"
-        
-        # For the two smallest initial separations, cut off data after minimum
-        if idx < 2:
-            # Find minimum separation index
-            min_idx = np.argmin(sim_data['separations'])
-            # Cut off data after the minimum
-            time_to_plot = sim_data['time_values'][:min_idx+1]
-            sep_to_plot = sim_data['separations'][:min_idx+1]
-        else:
-            time_to_plot = sim_data['time_values']
-            sep_to_plot = sim_data['separations']
-        
-        ax.plot(time_to_plot, sep_to_plot, 
-               color=sim_data['color'], linewidth=2, marker='o', markersize=3,
-               label=label, alpha=0.8)
-    
-    # Mark minimum points for the two smallest initial separations
-    for i in range(min(2, len(sim_data_list))):
-        sim_data = sim_data_list[i]
-        # Find minimum separation
-        min_idx = np.argmin(sim_data['separations'])
-        min_time = sim_data['time_values'][min_idx]
-        min_sep = sim_data['separations'][min_idx]
-        
-        ax.plot(min_time, min_sep, 'rx', markersize=12, markeredgewidth=3, 
-               label='Collapsed' if i == 0 else '', zorder=10)
-    
+    ax.set_title(title, fontsize=16)
     ax.set_xlabel('$t$', fontsize=16)
     ax.set_ylabel('$R$', fontsize=16)
     ax.tick_params(labelsize=16)
     ax.grid(True, alpha=0.2)
-    ax.legend(fontsize=16)
     
     plt.tight_layout()
     
     # Save plot
-    save_path = OUTPUT_DIR / f'monopole_separation_comparison.png'
+    save_path = OUTPUT_DIR / f'0_pi_annihilation_test.png'
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     print(f"\nSaved comparison plot: {save_path}")
     plt.close()
